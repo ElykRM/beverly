@@ -57,11 +57,11 @@
     <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-            <input type="date" name="birthday" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="date" name="birthday" id="birthday" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-            <input type="number" name="age" min="0" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="number" name="age" id="age" min="0" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -126,45 +126,62 @@
 </form>
 
 <script>
-    let vehicleIndex = 1;
-
-    document.getElementById('add-vehicle-btn').addEventListener('click', function() {
-        const container = document.getElementById('vehicles-container');
-        const newRow = document.createElement('div');
-        newRow.className = 'vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6';
-        newRow.innerHTML = `
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                <input type="text" name="vehicles[${vehicleIndex}][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
-                <input type="text" name="vehicles[${vehicleIndex}][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                <input type="text" name="vehicles[${vehicleIndex}][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-            </div>
-            <div>
-                <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
-                <input type="text" name="vehicles[${vehicleIndex}][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-            </div>
-            <div class="flex items-end">
-                <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
-            </div>
-        `;
-        container.appendChild(newRow);
-        vehicleIndex++;
-    });
-
-    document.addEventListener('click', function(e) {
-        if (e.target.classList.contains('remove-vehicle')) {
-            const row = e.target.closest('.vehicle-row');
-            if (document.querySelectorAll('.vehicle-row').length > 1) {
-                row.remove();
-            }
+// Auto-calculate age from birthday
+document.getElementById('birthday').addEventListener('change', function() {
+    const birthDate = new Date(this.value);
+    if (!isNaN(birthDate)) {
+        const today = new Date();
+        let age = today.getFullYear() - birthDate.getFullYear();
+        const m = today.getMonth() - birthDate.getMonth();
+        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
+            age--;
         }
-    });
+        document.getElementById('age').value = age >= 0 ? age : '';
+    } else {
+        document.getElementById('age').value = '';
+    }
+});
+
+// Dynamic vehicle rows (unchanged)
+let vehicleIndex = 1;
+
+document.getElementById('add-vehicle-btn').addEventListener('click', function() {
+    const container = document.getElementById('vehicles-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6';
+    newRow.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+            <input type="text" name="vehicles[${vehicleIndex}][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
+            <input type="text" name="vehicles[${vehicleIndex}][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <input type="text" name="vehicles[${vehicleIndex}][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
+            <input type="text" name="vehicles[${vehicleIndex}][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="flex items-end">
+            <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    vehicleIndex++;
+});
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-vehicle')) {
+        const row = e.target.closest('.vehicle-row');
+        if (document.querySelectorAll('.vehicle-row').length > 1) {
+            row.remove();
+        }
+    }
+});
 </script>
 
 <?php include '../includes/footer.php'; ?>
