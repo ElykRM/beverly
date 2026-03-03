@@ -1,7 +1,7 @@
 # Beverly Hills - Weezer
 Beverly Hills
 Song by
-.\tailwindcss.exe -i src/input.css -o assets/css/output.css --watch
+tailwindcss.exe -i input.css -o assets/css/tailwind.css --watch
 Weezer
 
 Where I come from isn't all that great
