@@ -174,12 +174,13 @@ $success_msg = $_GET['msg'] ?? '';
 </div>
 
 <!-- Payment History -->
+<!-- Payment History -->
 <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-10">
     <div class="p-8">
         <h3 class="text-xl font-semibold text-green-800 mb-4">Payment History</h3>
         
         <?php if (empty($payments)): ?>
-            <p class="text-gray-500 italic">No payments recorded for this household yet.</p>
+            <p class="text-gray-500 italic">No payments recorded yet.</p>
         <?php else: ?>
             <div class="overflow-x-auto">
                 <table class="min-w-full divide-y divide-gray-200">
@@ -194,11 +195,17 @@ $success_msg = $_GET['msg'] ?? '';
                     </thead>
                     <tbody class="divide-y divide-gray-200">
                         <?php foreach ($payments as $p): ?>
+                            <?php
+                            $period = sprintf("%d-%02d", $p['period_year'], $p['period_month']);
+                            if ($p['period_to_year'] && $p['period_to_month']) {
+                                $period .= sprintf(" to %d-%02d", $p['period_to_year'], $p['period_to_month']);
+                            }
+                            ?>
                             <tr>
                                 <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($p['or_no'] ?: '-') ?></td>
-                                <td class="px-6 py-4"><?= htmlspecialchars($p['payment_period'] ?: '-') ?></td>
+                                <td class="px-6 py-4"><?= htmlspecialchars($period) ?></td>
                                 <td class="px-6 py-4 font-medium text-green-700">₱<?= number_format($p['amount'], 2) ?></td>
-                                <td class="px-6 py-4"><?= date('M d, Y', strtotime($p['paid_at'])) ?></td>
+                                <td class="px-6 py-4"><?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?></td>
                                 <td class="px-6 py-4"><?= htmlspecialchars($p['remarks'] ?: '-') ?></td>
                             </tr>
                         <?php endforeach; ?>

@@ -7,34 +7,87 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 }
 
 try {
-    $household_id = $_POST['household_id'] ?? null;
-    if (!$household_id || !is_numeric($household_id)) {
-        throw new Exception("Invalid household selected");
+    $pdo->beginTransaction();
+
+    $household_id = (int)($_POST['household_id'] ?? 0);
+    if ($household_id <= 0) {
+        throw new Exception("No household selected.");
     }
 
-    $year = $_POST['year'] ?? null;
-    $month = $_POST['month'] ?? null;
-    $payment_period = null;
-    if ($year && $month) {
-        $payment_period = sprintf("%04d-%02d", $year, $month);
+    $or_no   = trim($_POST['or_no'] ?? '');
+    $amount  = (float)($_POST['amount'] ?? 0);
+    $remarks = trim($_POST['remarks'] ?? '');
+
+    if ($or_no === '') throw new Exception("OR number is required.");
+    if ($amount <= 0)   throw new Exception("Amount must be greater than zero.");
+
+    $payment_type = $_POST['payment_type'] ?? 'single';
+
+    if ($payment_type === 'single') {
+        $month = $_POST['single_month'] ?? '';
+        $year  = (int)($_POST['single_year'] ?? 0);
+
+        if (!preg_match('/^(0[1-9]|1[0-2])$/', $month) || $year < 2000) {
+            throw new Exception("Invalid month/year.");
+        }
+
+        $period_year      = $year;
+        $period_month     = (int)$month;
+        $period_to_year   = null;
+        $period_to_month  = null;
+    } else {
+        // Range
+        $from_month = $_POST['from_month'] ?? '';
+        $from_year  = (int)($_POST['from_year'] ?? 0);
+        $to_month   = $_POST['to_month'] ?? '';
+        $to_year    = (int)($_POST['to_year'] ?? 0);
+
+        if (!preg_match('/^(0[1-9]|1[0-2])$/', $from_month) ||
+            !preg_match('/^(0[1-9]|1[0-2])$/', $to_month) ||
+            $from_year < 2000 || $to_year < 2000) {
+            throw new Exception("Invalid from/to dates.");
+        }
+
+        // Basic validation: from <= to
+        $from = mktime(0,0,0, $from_month, 1, $from_year);
+        $to   = mktime(0,0,0, $to_month,   1, $to_year);
+        if ($from > $to) {
+            throw new Exception("Start date cannot be after end date.");
+        }
+
+        $period_year      = $from_year;
+        $period_month     = (int)$from_month;
+        $period_to_year   = $to_year;
+        $period_to_month  = (int)$to_month;
     }
 
     $stmt = $pdo->prepare("
-        INSERT INTO payments (household_id, or_no, payment_period, amount, remarks)
-        VALUES (?, ?, ?, ?, ?)
+        INSERT INTO payments 
+        (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
         $household_id,
-        $_POST['or_no'] ?? '',
-        $payment_period,
-        $_POST['amount'] ?? 0,
-        $_POST['remarks'] ?? null
+        $or_no,
+        $period_year,
+        $period_month,
+        $period_to_year,
+        $period_to_month,
+        $amount,
+        $remarks ?: null
     ]);
+
+    $pdo->commit();
 
     header("Location: ../actions/view.php?id=$household_id&msg=Payment recorded successfully");
     exit;
 
 } catch (Exception $e) {
-    die("Error saving payment: " . $e->getMessage());
+    $pdo->rollBack();
+    echo "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg mx-auto max-w-4xl'>
+            Error: " . htmlspecialchars($e->getMessage()) . "
+          </div>";
+    // In production: log error, show user-friendly message, don't expose raw exception
 }
+?>

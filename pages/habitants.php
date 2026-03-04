@@ -2,8 +2,13 @@
 include '../db.php';
 include '../includes/header.php';
 
-// Fetch ALL households (we'll filter client-side)
-$stmt = $pdo->query("SELECT * FROM households ORDER BY last_name ASC, first_name ASC");
+// Fetch ALL households once (client-side filtering)
+$stmt = $pdo->query("
+    SELECT id, last_name, first_name, middle_name, home_status, 
+           block, lot, street
+    FROM households 
+    ORDER BY last_name ASC, first_name ASC
+");
 $households = $stmt->fetchAll();
 
 $success_msg = $_GET['msg'] ?? '';
@@ -12,7 +17,7 @@ $success_msg = $_GET['msg'] ?? '';
 <div class="mb-8">
     <div class="flex justify-between items-center mb-6">
         <h2 class="text-3xl font-bold text-green-800">Habitants / Residents</h2>
-        <a href="add.php" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-6 rounded-lg shadow transition">
+        <a href="../actions/add.php" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-6 rounded-lg shadow transition">
             + New Household
         </a>
     </div>
@@ -23,13 +28,13 @@ $success_msg = $_GET['msg'] ?? '';
         </div>
     <?php endif; ?>
 
-    <!-- Filters – instant feedback -->
+    <!-- Filters – instant client-side -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
                 <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-1">Home Status</label>
                 <select id="status-filter" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                    <option value="ALL">ALL</option>
+                    <option value="ALL">All Statuses</option>
                     <option value="Owner">Owner</option>
                     <option value="Renter">Renter</option>
                     <option value="Member">Member</option>
@@ -37,13 +42,13 @@ $success_msg = $_GET['msg'] ?? '';
             </div>
 
             <div>
-                <label for="name-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Name</label>
-                <input type="text" id="name-filter" placeholder="e.g. Reyes, Juan, Maria..." 
+                <label for="name-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Name / Address</label>
+                <input type="text" id="name-filter" placeholder="e.g. John Doe" 
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
 
             <div class="flex items-end gap-4">
-                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline">
+                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
                     Clear Filters
                 </button>
             </div>
@@ -73,11 +78,11 @@ $success_msg = $_GET['msg'] ?? '';
                 <tbody class="bg-white divide-y divide-gray-200" id="table-body">
                     <?php foreach ($households as $h): ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
-                            data-lastname="<?= htmlspecialchars(strtolower($h['last_name'])) ?>"
-                            data-firstname="<?= htmlspecialchars(strtolower($h['first_name'])) ?>"
+                            data-lastname="<?= htmlspecialchars(strtolower($h['last_name'] ?? '')) ?>"
+                            data-firstname="<?= htmlspecialchars(strtolower($h['first_name'] ?? '')) ?>"
                             data-middlename="<?= htmlspecialchars(strtolower($h['middle_name'] ?? '')) ?>"
                             data-status="<?= htmlspecialchars($h['home_status']) ?>"
-                            onclick="window.location.href='view.php?id=<?= $h['id'] ?>'">
+                            onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                                 <?= htmlspecialchars($h['last_name']) ?>
                             </td>
@@ -85,22 +90,27 @@ $success_msg = $_GET['msg'] ?? '';
                                 <?= htmlspecialchars($h['first_name']) ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?= htmlspecialchars($h['middle_name'] ?? '-') ?>
+                                <?= htmlspecialchars($h['middle_name'] ?: '-') ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                 <?= htmlspecialchars($h['home_status']) ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?= htmlspecialchars($h['block'] ?? '-') ?>
+                                <?= htmlspecialchars($h['block'] ?: '-') ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?= htmlspecialchars($h['lot'] ?? '-') ?>
+                                <?= htmlspecialchars($h['lot'] ?: '-') ?>
                             </td>
                             <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                <?= htmlspecialchars($h['street'] ?? '-') ?>
+                                <?= htmlspecialchars($h['street'] ?: '-') ?>
                             </td>
                         </tr>
                     <?php endforeach; ?>
+                    <tr id="no-results" style="display: none;">
+                        <td colspan="7" class="px-6 py-12 text-center text-gray-500 italic">
+                            No households match the current filters.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
         </div>
@@ -108,39 +118,64 @@ $success_msg = $_GET['msg'] ?? '';
 </div>
 
 <script>
-// Real-time filtering
+// Real-time filtering (fixed status filter)
 const statusFilter = document.getElementById('status-filter');
-const nameFilter = document.getElementById('name-filter');
-const clearBtn = document.getElementById('clear-filters');
-const rows = document.querySelectorAll('.household-row');
+const nameFilter   = document.getElementById('name-filter');
+const clearBtn     = document.getElementById('clear-filters');
+const rows         = document.querySelectorAll('.household-row');
+const noResults    = document.getElementById('no-results');
 
 function filterTable() {
-    const statusValue = statusFilter.value.toUpperCase();
-    const nameValue = nameFilter.value.toLowerCase().trim();
+    const statusValue = (statusFilter.value || 'ALL').toUpperCase().trim();
+    const nameValue   = (nameFilter.value || '').toLowerCase().trim();
+
+    let visibleCount = 0;
 
     rows.forEach(row => {
-        const status = row.dataset.status;
-        const fullName = (row.dataset.lastname + ' ' + row.dataset.firstname + ' ' + row.dataset.middlename).toLowerCase();
+        const rowStatus = (row.dataset.status || '').toUpperCase().trim();
+        const fullName  = [
+            row.dataset.lastname   || '',
+            row.dataset.firstname  || '',
+            row.dataset.middlename || ''
+        ].join(' ').toLowerCase().trim();
 
-        const matchStatus = (statusValue === 'ALL' || status === statusValue);
-        const matchName = fullName.includes(nameValue);
+        // Address parts for broader name search
+        const address = [
+            row.querySelector('td:nth-child(5)')?.textContent || '',
+            row.querySelector('td:nth-child(6)')?.textContent || '',
+            row.querySelector('td:nth-child(7)')?.textContent || ''
+        ].join(' ').toLowerCase().trim();
 
-        row.style.display = (matchStatus && matchName) ? '' : 'none';
+        const searchText = fullName + ' ' + address;
+
+        const matchStatus = (statusValue === 'ALL' || rowStatus === statusValue);
+        const matchName   = searchText.includes(nameValue);
+
+        const shouldShow = matchStatus && matchName;
+
+        row.style.display = shouldShow ? '' : 'none';
+
+        if (shouldShow) visibleCount++;
     });
+
+    // Show/hide no-results row
+    if (noResults) {
+        noResults.style.display = visibleCount === 0 ? '' : 'none';
+    }
 }
 
-// Events
+// Attach events
 statusFilter.addEventListener('change', filterTable);
-nameFilter.addEventListener('input', filterTable);
+nameFilter.addEventListener('input',   filterTable);
 
-// Clear filters
+// Clear button
 clearBtn.addEventListener('click', () => {
     statusFilter.value = 'ALL';
-    nameFilter.value = '';
+    nameFilter.value   = '';
     filterTable();
 });
 
-// Initial filter (in case of query string pre-filter, but optional)
+// Initial run
 filterTable();
 </script>
 

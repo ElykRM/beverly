@@ -2,12 +2,20 @@
 include '../db.php';
 include '../includes/header.php';
 
-// Current date for overdue logic
+// ───────────────────────────────────────────────
+// Current date & periods
+// ───────────────────────────────────────────────
 $today = new DateTime();
-$current_year_month = $today->format('Y-m');
-$previous_month = (clone $today)->modify('-1 month')->format('Y-m');
+$currentYear  = (int)$today->format('Y');
+$currentMonth = (int)$today->format('n'); // 1–12
 
-// Summary stats
+$prevMonthDate = (clone $today)->modify('-1 month');
+$prevYear  = (int)$prevMonthDate->format('Y');
+$prevMonth = (int)$prevMonthDate->format('n');
+
+// ───────────────────────────────────────────────
+// Summary stats – ALWAYS from FULL dataset
+// ───────────────────────────────────────────────
 $total_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
 $total = $total_stmt->fetch()['total'];
 
@@ -17,52 +25,51 @@ $status_stmt = $pdo->query("
     GROUP BY home_status
 ");
 $status_counts = [];
-while ($row = $status_stmt->fetch()) {
+while ($row = $status_stmt->fetch(PDO::FETCH_ASSOC)) {
     $status_counts[$row['home_status']] = $row['count'];
 }
-$owners = $status_counts['Owner'] ?? 0;
+$owners  = $status_counts['Owner']  ?? 0;
 $renters = $status_counts['Renter'] ?? 0;
 $members = $status_counts['Member'] ?? 0;
 
-// Paid this month
-$paid_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT household_id) AS count 
-    FROM payments 
-    WHERE payment_period = ?
+// Paid this month – full dataset, range-aware
+$paid_current_stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT household_id) AS count
+    FROM payments p
+    WHERE (p.period_year = :y AND p.period_month <= :m 
+           AND (p.period_to_year IS NULL OR p.period_to_year > :y 
+                OR (p.period_to_year = :y AND p.period_to_month >= :m)))
+       OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y))
 ");
-$paid_stmt->execute([$current_year_month]);
-$paid_this_month = $paid_stmt->fetch()['count'];
+$paid_current_stmt->execute([':y' => $currentYear, ':m' => $currentMonth]);
+$paid_this_month = $paid_current_stmt->fetch()['count'];
 
-// Overdue & Unpaid
-$unpaid_overdue_query = "
-    SELECT h.id
+// Overdue count – full dataset (prev month unpaid)
+$overdue_full_stmt = $pdo->prepare("
+    SELECT COUNT(DISTINCT h.id) AS count
     FROM households h
-    LEFT JOIN payments p ON h.id = p.household_id AND p.payment_period = ?
-    WHERE p.id IS NULL
-";
-$uo_stmt = $pdo->prepare($unpaid_overdue_query);
-$uo_stmt->execute([$current_year_month]);
-$unpaid_or_overdue = $uo_stmt->fetchAll(PDO::FETCH_COLUMN);
+    WHERE NOT EXISTS (
+        SELECT 1 FROM payments p 
+        WHERE h.id = p.household_id 
+          AND ((p.period_year = :py AND p.period_month <= :pm 
+                AND (p.period_to_year IS NULL OR p.period_to_year > :py 
+                     OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
+             OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+    )
+");
+$overdue_full_stmt->execute([':py' => $prevYear, ':pm' => $prevMonth]);
+$total_overdue = $overdue_full_stmt->fetch()['count'];
 
-$overdue = 0;
-$unpaid = 0;
-foreach ($unpaid_or_overdue as $hid) {
-    $prev_stmt = $pdo->prepare("SELECT 1 FROM payments WHERE household_id = ? AND payment_period = ?");
-    $prev_stmt->execute([$hid, $previous_month]);
-    if ($prev_stmt->fetch()) {
-        $unpaid++;
-    } else {
-        $overdue++;
-    }
-}
-
+// ───────────────────────────────────────────────
 // Filters
+// ───────────────────────────────────────────────
 $status_filter = $_GET['status'] ?? 'ALL';
 $block_filter  = trim($_GET['block'] ?? '');
 $lot_filter    = trim($_GET['lot'] ?? '');
 $name_search   = trim($_GET['name'] ?? '');
 $dues_filter   = $_GET['dues_status'] ?? 'ALL';
 
+// Base query
 $query = "SELECT h.* FROM households h";
 $where = " WHERE 1=1";
 $params = [];
@@ -84,18 +91,42 @@ if ($name_search !== '') {
     $params[':name'] = "%$name_search%";
 }
 
+// Dues status filter – range-aware with EXISTS (no duplicates)
 if ($dues_filter !== 'ALL') {
-    $query .= " LEFT JOIN payments p ON h.id = p.household_id AND p.payment_period = :current_period";
-    $params[':current_period'] = $current_year_month;
-
     if ($dues_filter === 'Paid') {
-        $where .= " AND p.id IS NOT NULL";
+        $where .= " AND EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :cy AND p.period_month <= :cm 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :cy 
+                         OR (p.period_to_year = :cy AND p.period_to_month >= :cm)))
+                 OR (p.period_year < :cy AND (p.period_to_year IS NULL OR p.period_to_year >= :cy)))
+        )";
+        $params[':cy'] = $currentYear;
+        $params[':cm'] = $currentMonth;
     } elseif ($dues_filter === 'Unpaid' || $dues_filter === 'Overdue') {
-        $where .= " AND p.id IS NULL";
+        $where .= " AND NOT EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :cy AND p.period_month <= :cm 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :cy 
+                         OR (p.period_to_year = :cy AND p.period_to_month >= :cm)))
+                 OR (p.period_year < :cy AND (p.period_to_year IS NULL OR p.period_to_year >= :cy)))
+        )";
+        $params[':cy'] = $currentYear;
+        $params[':cm'] = $currentMonth;
+
         if ($dues_filter === 'Overdue') {
-            $query .= " LEFT JOIN payments p_prev ON h.id = p_prev.household_id AND p_prev.payment_period = :prev_period";
-            $params[':prev_period'] = $previous_month;
-            $where .= " AND p_prev.id IS NULL";
+            $where .= " AND NOT EXISTS (
+                SELECT 1 FROM payments p 
+                WHERE h.id = p.household_id 
+                  AND ((p.period_year = :py AND p.period_month <= :pm 
+                        AND (p.period_to_year IS NULL OR p.period_to_year > :py 
+                             OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
+                     OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+            )";
+            $params[':py'] = $prevYear;
+            $params[':pm'] = $prevMonth;
         }
     }
 }
@@ -105,25 +136,56 @@ $stmt = $pdo->prepare($query);
 $stmt->execute($params);
 $households = $stmt->fetchAll();
 
-// Compute dues status
+// ───────────────────────────────────────────────
+// Compute dues status for display (range-aware)
+// ───────────────────────────────────────────────
 $results_with_status = [];
 foreach ($households as $h) {
+    $hid = $h['id'];
+
+    // Current month covered?
+    $cstmt = $pdo->prepare("
+        SELECT 1 FROM payments 
+        WHERE household_id = :hid 
+          AND ((period_year = :y AND period_month <= :m 
+                AND (period_to_year IS NULL OR period_to_year > :y 
+                     OR (period_to_year = :y AND period_to_month >= :m)))
+             OR (period_year < :y AND (period_to_year IS NULL OR period_to_year >= :y)))
+    ");
+    $cstmt->execute([
+        ':hid' => $hid, 
+        ':y'   => $currentYear, 
+        ':m'   => $currentMonth
+    ]);
+    $is_paid_current = $cstmt->fetch() !== false;
+
+    // Previous month covered?
+    $pstmt = $pdo->prepare("
+        SELECT 1 FROM payments 
+        WHERE household_id = :hid 
+          AND ((period_year = :y AND period_month <= :m 
+                AND (period_to_year IS NULL OR period_to_year > :y 
+                     OR (period_to_year = :y AND period_to_month >= :m)))
+             OR (period_year < :y AND (period_to_year IS NULL OR period_to_year >= :y)))
+    ");
+    $pstmt->execute([
+        ':hid' => $hid, 
+        ':y'   => $prevYear, 
+        ':m'   => $prevMonth
+    ]);
+    $is_paid_prev = $pstmt->fetch() !== false;
+
     $h['dues_status'] = 'Unpaid';
     $h['status_class'] = 'bg-yellow-100 text-yellow-800';
 
-    $pstmt = $pdo->prepare("SELECT 1 FROM payments WHERE household_id = ? AND payment_period = ?");
-    $pstmt->execute([$h['id'], $current_year_month]);
-    if ($pstmt->fetch()) {
+    if ($is_paid_current) {
         $h['dues_status'] = 'Paid';
         $h['status_class'] = 'bg-green-100 text-green-800';
-    } else {
-        $prev_stmt = $pdo->prepare("SELECT 1 FROM payments WHERE household_id = ? AND payment_period = ?");
-        $prev_stmt->execute([$h['id'], $previous_month]);
-        if (!$prev_stmt->fetch()) {
-            $h['dues_status'] = 'Overdue';
-            $h['status_class'] = 'bg-red-100 text-red-800';
-        }
+    } elseif (!$is_paid_prev) {
+        $h['dues_status'] = 'Overdue';
+        $h['status_class'] = 'bg-red-100 text-red-800';
     }
+
     $results_with_status[] = $h;
 }
 ?>
@@ -133,7 +195,7 @@ foreach ($households as $h) {
     <p class="text-gray-600 mb-6">Household overview and filtered list</p>
 </div>
 
-<!-- Summary Cards -->
+<!-- Summary Cards – always full data -->
 <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
         <p class="text-sm text-gray-600">Total Households</p>
@@ -152,8 +214,8 @@ foreach ($households as $h) {
         <p class="text-4xl font-bold text-green-800"><?= $members ?></p>
     </div>
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
-        <p class="text-sm text-gray-600">Overdue</p>
-        <p class="text-4xl font-bold text-red-600"><?= $overdue ?></p>
+        <p class="text-sm text-gray-600">Overdue (prev month unpaid)</p>
+        <p class="text-4xl font-bold text-red-600"><?= $total_overdue ?></p>
     </div>
 </div>
 
@@ -164,9 +226,9 @@ foreach ($households as $h) {
             <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
             <select name="status" id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
                 <option value="ALL" <?= $status_filter === 'ALL' ? 'selected' : '' ?>>All</option>
-                <option value="Owner" <?= $status_filter === 'Owner' ? 'selected' : '' ?>>Owner</option>
-                <option value="Renter" <?= $status_filter === 'Renter' ? 'selected' : '' ?>>Renter</option>
-                <option value="Member" <?= $status_filter === 'Member' ? 'selected' : '' ?>>Member</option>
+                <option value="Owner"   <?= $status_filter === 'Owner'   ? 'selected' : '' ?>>Owner</option>
+                <option value="Renter"  <?= $status_filter === 'Renter'  ? 'selected' : '' ?>>Renter</option>
+                <option value="Member"  <?= $status_filter === 'Member'  ? 'selected' : '' ?>>Member</option>
             </select>
         </div>
         <div>
@@ -182,14 +244,14 @@ foreach ($households as $h) {
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
             <input type="text" name="name" id="name" value="<?= htmlspecialchars($name_search) ?>" 
-                   placeholder="e.g. John" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                   placeholder="e.g. John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
         </div>
         <div>
             <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
             <select name="dues_status" id="dues_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
-                <option value="ALL" <?= $dues_filter === 'ALL' ? 'selected' : '' ?>>All</option>
-                <option value="Paid" <?= $dues_filter === 'Paid' ? 'selected' : '' ?>>Paid</option>
-                <option value="Unpaid" <?= $dues_filter === 'Unpaid' ? 'selected' : '' ?>>Unpaid</option>
+                <option value="ALL"     <?= $dues_filter === 'ALL'     ? 'selected' : '' ?>>All</option>
+                <option value="Paid"    <?= $dues_filter === 'Paid'    ? 'selected' : '' ?>>Paid</option>
+                <option value="Unpaid"  <?= $dues_filter === 'Unpaid'  ? 'selected' : '' ?>>Unpaid</option>
                 <option value="Overdue" <?= $dues_filter === 'Overdue' ? 'selected' : '' ?>>Overdue</option>
             </select>
         </div>
@@ -254,7 +316,7 @@ foreach ($households as $h) {
 
     <script>
     function exportCSV() {
-        const data = <?= json_encode($results_with_status) ?>;
+        const data = <?= json_encode($results_with_status, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP) ?>;
         let csv = 'Name,Status,Block,Lot,Street,Dues Status\n';
         data.forEach(row => {
             csv += `"${row.first_name} ${row.last_name}","${row.home_status}","${row.block || ''}","${row.lot || ''}","${row.street || ''}","${row.dues_status}"\n`;
