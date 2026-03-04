@@ -83,38 +83,3 @@ CREATE TABLE payments (
     INDEX idx_period (period_year, period_month),
     INDEX idx_household_period (household_id, period_year, period_month)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
-
--- Optional: view to make single-month and range payments easier to query
-CREATE OR REPLACE VIEW payment_months AS
-    SELECT 
-        p.id AS payment_id,
-        p.household_id,
-        p.or_no,
-        p.amount,
-        p.paid_at,
-        p.remarks,
-        y.year_num AS period_year,
-        m.month_num AS period_month
-    FROM payments p
-    CROSS JOIN (
-        SELECT 1 AS month_num UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
-        UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 
-        UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12
-    ) m
-    CROSS JOIN (
-        SELECT p.period_year AS year_num
-        WHERE p.period_to_year IS NULL
-        UNION
-        SELECT y FROM (
-            SELECT period_year AS y FROM payments WHERE period_to_year IS NOT NULL
-            UNION SELECT period_to_year FROM payments WHERE period_to_year IS NOT NULL
-        ) years
-        WHERE y BETWEEN p.period_year AND COALESCE(p.period_to_year, p.period_year)
-    ) y
-    WHERE 
-        (p.period_to_year IS NULL AND m.month_num = p.period_month)
-        OR
-        (p.period_to_year IS NOT NULL 
-         AND y.year_num BETWEEN p.period_year AND p.period_to_year
-         AND (y.year_num > p.period_year OR m.month_num >= p.period_month)
-         AND (y.year_num < p.period_to_year OR m.month_num <= p.period_to_month));
