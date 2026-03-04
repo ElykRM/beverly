@@ -444,16 +444,6 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
     vehicleIndex++;
 });
 
-document.addEventListener('click', function(e) {
-    if (e.target.classList.contains('remove-vehicle')) {
-        const row = e.target.closest('.vehicle-row');
-        if (document.querySelectorAll('.vehicle-row').length > 1) {
-            row.remove();
-        }
-    }
-});
-</script>
-
 <!-- Cancel + Update buttons at bottom -->
 <div class="mt-12 flex flex-col sm:flex-row justify-end gap-4">
     <a href="../actions/view.php?id=<?= $id ?>" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-10 rounded-lg shadow transition text-center">
@@ -463,5 +453,15 @@ document.addEventListener('click', function(e) {
         Update Household Record
     </button>
 </div>
+
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-vehicle')) {
+        const row = e.target.closest('.vehicle-row');
+        if (document.querySelectorAll('.vehicle-row').length > 1) {
+            row.remove();
+        }
+    }
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
