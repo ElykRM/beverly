@@ -24,12 +24,18 @@ $vstmt = $pdo->prepare("SELECT * FROM vehicles WHERE household_id = ? ORDER BY i
 $vstmt->execute([$id]);
 $vehicles = $vstmt->fetchAll();
 
-// Additional members
-$mstmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? ORDER BY id");
+$mstmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? ORDER BY last_name, first_name");
 $mstmt->execute([$id]);
 $members = $mstmt->fetchAll();
 
-// Dynamic age for primary
+$pstmt = $pdo->prepare("
+    SELECT * FROM payments 
+    WHERE household_id = ? 
+    ORDER BY paid_at DESC
+");
+$pstmt->execute([$id]);
+$payments = $pstmt->fetchAll();
+
 $age = null;
 if ($household['birthday']) {
     $birthDate = new DateTime($household['birthday']);
@@ -55,9 +61,10 @@ $success_msg = $_GET['msg'] ?? '';
 
 <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-10">
     <div class="p-8">
+        <!-- Primary Member -->
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
             <div>
-                <label class="block text-sm font-medium text-gray-500">Name</label>
+                <label class="block text-sm font-medium text-gray-500">Primary Member Name</label>
                 <p class="mt-1 text-lg font-semibold">
                     <?= htmlspecialchars($household['last_name'] . ', ' . $household['first_name'] . ' ' . ($household['middle_name'] ?? '')) ?>
                 </p>
@@ -72,7 +79,7 @@ $success_msg = $_GET['msg'] ?? '';
                     <?= htmlspecialchars(($household['block'] ? 'Block ' . $household['block'] : '') . 
                                        ($household['lot'] ? ' Lot ' . $household['lot'] : '') . 
                                        ($household['street'] ? ' ' . $household['street'] : '')) ?><br>
-                    <?= htmlspecialchars($household['subdivision']) ?>
+                    <?= htmlspecialchars($household['subdivision'] ?? '') ?>
                 </p>
             </div>
             <div>
@@ -93,7 +100,7 @@ $success_msg = $_GET['msg'] ?? '';
             </div>
         </div>
 
-        <!-- Additional Members -->
+        <!-- Additional Members – Compact -->
         <div class="border-t border-gray-200 pt-8 mb-8">
             <h3 class="text-xl font-semibold text-green-800 mb-4">Other Household Members (<?= count($members) ?>)</h3>
             
@@ -104,26 +111,26 @@ $success_msg = $_GET['msg'] ?? '';
                     <table class="min-w-full divide-y divide-gray-200">
                         <thead class="bg-gray-50">
                             <tr>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Sub-member name</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Relation</th>
                                 <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birthday / Gender</th>
-                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact / Occupation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact No.</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Occupation</th>
                             </tr>
                         </thead>
                         <tbody class="divide-y divide-gray-200">
                             <?php foreach ($members as $m): ?>
                                 <tr>
                                     <td class="px-6 py-4 whitespace-nowrap font-medium">
-                                        <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ($m['middle_name'] ? ' ' . $m['middle_name'] : '')) ?>
+                                        <?= htmlspecialchars($m['last_name'] . ', ' . $m['first_name'] . ' ' . $m['middle_name']) ?>
                                     </td>
                                     <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($m['relation']) ?></td>
                                     <td class="px-6 py-4 whitespace-nowrap">
                                         <?= $m['birthday'] ? date('M d, Y', strtotime($m['birthday'])) : '-' ?>
                                         / <?= htmlspecialchars($m['gender'] ?: '-') ?>
                                     </td>
-                                    <td class="px-6 py-4 whitespace-nowrap">
-                                        <?= htmlspecialchars($m['contact_no'] ?: '-') ?> / <?= htmlspecialchars($m['occupation'] ?: '-') ?>
-                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($m['contact_no'] ?: '-') ?></td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($m['occupation'] ?: '-') ?></td>
                                 </tr>
                             <?php endforeach; ?>
                         </tbody>

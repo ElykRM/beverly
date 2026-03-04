@@ -91,7 +91,7 @@ try {
 
     $pdo->commit();
 
-    header("Location: ../pages/view.php?id=$id&msg=Household updated successfully");
+    header("Location: ../actions/view.php?id=$id&msg=Household updated successfully");
     exit;
 
 } catch (Exception $e) {
