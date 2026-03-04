@@ -20,6 +20,12 @@ if (!$household) {
     exit;
 }
 
+// Existing additional members
+$mstmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? ORDER BY id");
+$mstmt->execute([$id]);
+$members = $mstmt->fetchAll();
+
+// Existing vehicles
 $vstmt = $pdo->prepare("SELECT * FROM vehicles WHERE household_id = ? ORDER BY id");
 $vstmt->execute([$id]);
 $vehicles = $vstmt->fetchAll();
@@ -35,6 +41,7 @@ $vehicles = $vstmt->fetchAll();
 <form action="../actions/update_household.php" method="POST" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
     <input type="hidden" name="id" value="<?= $id ?>">
 
+    <!-- Primary Member - Names & Status -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
@@ -61,6 +68,7 @@ $vehicles = $vstmt->fetchAll();
         </div>
     </div>
 
+    <!-- Address -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Block</label>
@@ -76,14 +84,11 @@ $vehicles = $vstmt->fetchAll();
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+    <!-- Primary Member Personal Info -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-            <input type="date" name="birthday" id="birthday" value="<?= $household['birthday'] ?? '' ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-            <input type="number" name="age" id="age" min="0" readonly value="<?= $household['age'] ?? '' ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+            <input type="date" name="birthday" value="<?= $household['birthday'] ?? '' ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -108,26 +113,140 @@ $vehicles = $vstmt->fetchAll();
         </div>
     </div>
 
+    <!-- Additional Household Members -->
+    <div class="border-t border-gray-200 pt-8 mb-12">
+        <h3 class="text-xl font-semibold text-green-800 mb-4">Additional Household Members</h3>
+        <p class="text-sm text-gray-600 mb-4">Add or edit spouse, children, parents, tenants, etc.</p>
+        
+        <div id="members-container" class="space-y-8">
+            <?php if (empty($members)): ?>
+                <!-- Default empty row if no members -->
+                <div class="member-row grid grid-cols-1 md:grid-cols-6 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                        <input type="text" name="members[0][first_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                        <input type="text" name="members[0][last_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                        <input type="text" name="members[0][middle_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                        <select name="members[0][relation]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                            <option value="">Select</option>
+                            <option value="Spouse">Spouse</option>
+                            <option value="Child">Child</option>
+                            <option value="Parent">Parent</option>
+                            <option value="Sibling">Sibling</option>
+                            <option value="Tenant">Tenant</option>
+                            <option value="Other">Other</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                        <input type="date" name="members[0][birthday]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium">Remove</button>
+                    </div>
+                </div>
+            <?php else: ?>
+                <?php foreach ($members as $index => $m): ?>
+                    <div class="member-row grid grid-cols-1 md:grid-cols-6 gap-6">
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                            <input type="text" name="members[<?= $index ?>][first_name]" value="<?= htmlspecialchars($m['first_name']) ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                            <input type="text" name="members[<?= $index ?>][last_name]" value="<?= htmlspecialchars($m['last_name']) ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                            <input type="text" name="members[<?= $index ?>][middle_name]" value="<?= htmlspecialchars($m['middle_name'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                            <select name="members[<?= $index ?>][relation]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                                <option value="">Select</option>
+                                <option value="Spouse" <?= $m['relation'] === 'Spouse' ? 'selected' : '' ?>>Spouse</option>
+                                <option value="Child" <?= $m['relation'] === 'Child' ? 'selected' : '' ?>>Child</option>
+                                <option value="Parent" <?= $m['relation'] === 'Parent' ? 'selected' : '' ?>>Parent</option>
+                                <option value="Sibling" <?= $m['relation'] === 'Sibling' ? 'selected' : '' ?>>Sibling</option>
+                                <option value="Tenant" <?= $m['relation'] === 'Tenant' ? 'selected' : '' ?>>Tenant</option>
+                                <option value="Other" <?= $m['relation'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                            </select>
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                            <input type="date" name="members[<?= $index ?>][birthday]" value="<?= $m['birthday'] ?? '' ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium">Remove</button>
+                        </div>
+                    </div>
+                <?php endforeach; ?>
+            <?php endif; ?>
+        </div>
+
+        <button type="button" id="add-member-btn" class="mt-4 inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg">
+            + Add Member
+        </button>
+    </div>
+
+    <!-- Vehicles Section -->
     <div class="border-t border-gray-200 pt-8">
         <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles</h3>
         
         <div id="vehicles-container" class="space-y-6">
             <?php if (empty($vehicles)): ?>
                 <div class="vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6">
-                    <div><input type="text" name="vehicles[0][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                    <div><input type="text" name="vehicles[0][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                    <div><input type="text" name="vehicles[0][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                    <div><input type="text" name="vehicles[0][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                    <div class="flex items-end"><button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button></div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                        <input type="text" name="vehicles[0][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
+                        <input type="text" name="vehicles[0][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                        <input type="text" name="vehicles[0][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
+                        <input type="text" name="vehicles[0][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                    </div>
+                    <div class="flex items-end">
+                        <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
+                    </div>
                 </div>
             <?php else: ?>
                 <?php foreach ($vehicles as $index => $v): ?>
                     <div class="vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6">
-                        <div><input type="text" name="vehicles[<?= $index ?>][brand]" value="<?= htmlspecialchars($v['brand'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                        <div><input type="text" name="vehicles[<?= $index ?>][type_model]" value="<?= htmlspecialchars($v['type_model'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                        <div><input type="text" name="vehicles[<?= $index ?>][color]" value="<?= htmlspecialchars($v['color'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                        <div><input type="text" name="vehicles[<?= $index ?>][plate_no]" value="<?= htmlspecialchars($v['plate_no'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-                        <div class="flex items-end"><button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button></div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+                            <input type="text" name="vehicles[<?= $index ?>][brand]" value="<?= htmlspecialchars($v['brand'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
+                            <input type="text" name="vehicles[<?= $index ?>][type_model]" value="<?= htmlspecialchars($v['type_model'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+                            <input type="text" name="vehicles[<?= $index ?>][color]" value="<?= htmlspecialchars($v['color'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div>
+                            <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
+                            <input type="text" name="vehicles[<?= $index ?>][plate_no]" value="<?= htmlspecialchars($v['plate_no'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        </div>
+                        <div class="flex items-end">
+                            <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
+                        </div>
                     </div>
                 <?php endforeach; ?>
             <?php endif; ?>
@@ -149,23 +268,61 @@ $vehicles = $vstmt->fetchAll();
 </form>
 
 <script>
-// Auto-calculate age from birthday
-document.getElementById('birthday').addEventListener('change', function() {
-    const birthDate = new Date(this.value);
-    if (!isNaN(birthDate)) {
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
+// Additional Members - Dynamic rows
+let memberIndex = <?= count($members) ?: 1 ?>;
+
+document.getElementById('add-member-btn').addEventListener('click', function() {
+    const container = document.getElementById('members-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'member-row grid grid-cols-1 md:grid-cols-6 gap-6';
+    newRow.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input type="text" name="members[${memberIndex}][first_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input type="text" name="members[${memberIndex}][last_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+            <input type="text" name="members[${memberIndex}][middle_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+            <select name="members[${memberIndex}][relation]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="">Select</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Child">Child</option>
+                <option value="Parent">Parent</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Tenant">Tenant</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+            <input type="date" name="members[${memberIndex}][birthday]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="flex items-end">
+            <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium">Remove</button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    memberIndex++;
+});
+
+// Remove member row
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-member')) {
+        const row = e.target.closest('.member-row');
+        if (document.querySelectorAll('.member-row').length > 1) {
+            row.remove();
         }
-        document.getElementById('age').value = age >= 0 ? age : '';
-    } else {
-        document.getElementById('age').value = '';
     }
 });
 
-// Dynamic vehicle rows
+// Vehicles - Dynamic rows
 let vehicleIndex = <?= count($vehicles) ?: 1 ?>;
 
 document.getElementById('add-vehicle-btn').addEventListener('click', function() {
@@ -173,11 +330,25 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
     const newRow = document.createElement('div');
     newRow.className = 'vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6';
     newRow.innerHTML = `
-        <div><input type="text" name="vehicles[${vehicleIndex}][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-        <div><input type="text" name="vehicles[${vehicleIndex}][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-        <div><input type="text" name="vehicles[${vehicleIndex}][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-        <div><input type="text" name="vehicles[${vehicleIndex}][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg"></div>
-        <div class="flex items-end"><button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button></div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
+            <input type="text" name="vehicles[${vehicleIndex}][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
+            <input type="text" name="vehicles[${vehicleIndex}][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
+            <input type="text" name="vehicles[${vehicleIndex}][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
+            <input type="text" name="vehicles[${vehicleIndex}][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="flex items-end">
+            <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
+        </div>
     `;
     container.appendChild(newRow);
     vehicleIndex++;

@@ -12,6 +12,13 @@ try {
         throw new Exception("Invalid household selected");
     }
 
+    $year = $_POST['year'] ?? null;
+    $month = $_POST['month'] ?? null;
+    $payment_period = null;
+    if ($year && $month) {
+        $payment_period = sprintf("%04d-%02d", $year, $month);
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO payments (household_id, or_no, payment_period, amount, remarks)
         VALUES (?, ?, ?, ?, ?)
@@ -20,12 +27,12 @@ try {
     $stmt->execute([
         $household_id,
         $_POST['or_no'] ?? '',
-        $_POST['payment_period'] ?? '',
+        $payment_period,
         $_POST['amount'] ?? 0,
         $_POST['remarks'] ?? null
     ]);
 
-    header("Location: ../pages/view.php?id=$household_id&msg=Payment recorded successfully");
+    header("Location: ../actions/view.php?id=$household_id&msg=Payment recorded successfully");
     exit;
 
 } catch (Exception $e) {

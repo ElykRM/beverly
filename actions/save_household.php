@@ -9,10 +9,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $pdo->beginTransaction();
 
+    // Insert primary household
     $stmt = $pdo->prepare("
         INSERT INTO households 
-        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, age, gender, contact_no, occupation, num_pets)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -24,7 +25,6 @@ try {
         $_POST['lot'] ?? null,
         $_POST['street'] ?? null,
         $_POST['birthday'] ?: null,
-        $_POST['age'] ?: null,
         $_POST['gender'] ?? null,
         $_POST['contact_no'] ?? null,
         $_POST['occupation'] ?? null,
@@ -33,6 +33,32 @@ try {
 
     $household_id = $pdo->lastInsertId();
 
+    // Insert additional members
+    if (!empty($_POST['members']) && is_array($_POST['members'])) {
+        $mstmt = $pdo->prepare("
+            INSERT INTO household_members 
+            (household_id, first_name, last_name, middle_name, relation, birthday, gender, contact_no, occupation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        foreach ($_POST['members'] as $m) {
+            if (empty($m['first_name']) || empty($m['last_name']) || empty($m['relation'])) continue;
+
+            $mstmt->execute([
+                $household_id,
+                $m['first_name'] ?? '',
+                $m['last_name'] ?? '',
+                $m['middle_name'] ?? null,
+                $m['relation'] ?? '',
+                $m['birthday'] ?: null,
+                $m['gender'] ?? null,
+                $m['contact_no'] ?? null,
+                $m['occupation'] ?? null
+            ]);
+        }
+    }
+
+    // Insert vehicles
     if (!empty($_POST['vehicles']) && is_array($_POST['vehicles'])) {
         $vstmt = $pdo->prepare("
             INSERT INTO vehicles (household_id, brand, type_model, color, plate_no)

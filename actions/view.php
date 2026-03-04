@@ -24,11 +24,24 @@ $vstmt = $pdo->prepare("SELECT * FROM vehicles WHERE household_id = ? ORDER BY i
 $vstmt->execute([$id]);
 $vehicles = $vstmt->fetchAll();
 
+// Additional members
+$mstmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? ORDER BY id");
+$mstmt->execute([$id]);
+$members = $mstmt->fetchAll();
+
+// Dynamic age for primary
+$age = null;
+if ($household['birthday']) {
+    $birthDate = new DateTime($household['birthday']);
+    $today = new DateTime();
+    $age = $today->diff($birthDate)->y;
+}
+
 $success_msg = $_GET['msg'] ?? '';
 ?>
 
 <div class="mb-10">
-    <div class="flex justify-between items-center">
+    <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 class="text-3xl font-bold text-green-800">Household Details</h2>
         <a href="habitants.php" class="text-green-700 hover:text-green-900 font-medium">&larr; Back to List</a>
     </div>
@@ -40,7 +53,7 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 <?php endif; ?>
 
-<div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
+<div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-10">
     <div class="p-8">
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 mb-10">
             <div>
@@ -66,7 +79,7 @@ $success_msg = $_GET['msg'] ?? '';
                 <label class="block text-sm font-medium text-gray-500">Birthday / Age / Gender</label>
                 <p class="mt-1 text-lg">
                     <?= $household['birthday'] ? date('M d, Y', strtotime($household['birthday'])) : '-' ?> 
-                    (Age: <?= $household['age'] ?: '-' ?>) 
+                    (Age: <?= $age ?: '-' ?>) 
                     <?= $household['gender'] ?: '-' ?>
                 </p>
             </div>
@@ -80,6 +93,46 @@ $success_msg = $_GET['msg'] ?? '';
             </div>
         </div>
 
+        <!-- Additional Members -->
+        <div class="border-t border-gray-200 pt-8 mb-8">
+            <h3 class="text-xl font-semibold text-green-800 mb-4">Other Household Members (<?= count($members) ?>)</h3>
+            
+            <?php if (empty($members)): ?>
+                <p class="text-gray-500 italic">No additional members registered</p>
+            <?php else: ?>
+                <div class="overflow-x-auto">
+                    <table class="min-w-full divide-y divide-gray-200">
+                        <thead class="bg-gray-50">
+                            <tr>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Relation</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Birthday / Gender</th>
+                                <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Contact / Occupation</th>
+                            </tr>
+                        </thead>
+                        <tbody class="divide-y divide-gray-200">
+                            <?php foreach ($members as $m): ?>
+                                <tr>
+                                    <td class="px-6 py-4 whitespace-nowrap font-medium">
+                                        <?= htmlspecialchars($m['first_name'] . ' ' . $m['last_name'] . ($m['middle_name'] ? ' ' . $m['middle_name'] : '')) ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($m['relation']) ?></td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <?= $m['birthday'] ? date('M d, Y', strtotime($m['birthday'])) : '-' ?>
+                                        / <?= htmlspecialchars($m['gender'] ?: '-') ?>
+                                    </td>
+                                    <td class="px-6 py-4 whitespace-nowrap">
+                                        <?= htmlspecialchars($m['contact_no'] ?: '-') ?> / <?= htmlspecialchars($m['occupation'] ?: '-') ?>
+                                    </td>
+                                </tr>
+                            <?php endforeach; ?>
+                        </tbody>
+                    </table>
+                </div>
+            <?php endif; ?>
+        </div>
+
+        <!-- Vehicles -->
         <div class="border-t border-gray-200 pt-8">
             <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles (<?= count($vehicles) ?>)</h3>
             
@@ -113,17 +166,53 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 </div>
 
-<div class="mt-8 text-center space-x-4">
+<!-- Payment History -->
+<div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-10">
+    <div class="p-8">
+        <h3 class="text-xl font-semibold text-green-800 mb-4">Payment History</h3>
+        
+        <?php if (empty($payments)): ?>
+            <p class="text-gray-500 italic">No payments recorded for this household yet.</p>
+        <?php else: ?>
+            <div class="overflow-x-auto">
+                <table class="min-w-full divide-y divide-gray-200">
+                    <thead class="bg-gray-50">
+                        <tr>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR No.</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Paid</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                        </tr>
+                    </thead>
+                    <tbody class="divide-y divide-gray-200">
+                        <?php foreach ($payments as $p): ?>
+                            <tr>
+                                <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($p['or_no'] ?: '-') ?></td>
+                                <td class="px-6 py-4"><?= htmlspecialchars($p['payment_period'] ?: '-') ?></td>
+                                <td class="px-6 py-4 font-medium text-green-700">₱<?= number_format($p['amount'], 2) ?></td>
+                                <td class="px-6 py-4"><?= date('M d, Y', strtotime($p['paid_at'])) ?></td>
+                                <td class="px-6 py-4"><?= htmlspecialchars($p['remarks'] ?: '-') ?></td>
+                            </tr>
+                        <?php endforeach; ?>
+                    </tbody>
+                </table>
+            </div>
+        <?php endif; ?>
+    </div>
+</div>
+
+<div class="mt-8 flex flex-wrap justify-center gap-4">
     <a href="edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Edit Household
     </a>
     <a href="../pages/payment.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Log Payment
     </a>
-</div>
-
-<div class="mt-4 text-center">
-    <form action="../actions/delete.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');">
+    <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-purple-600 hover:bg-purple-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+        View Dues History
+    </a>
+    <form action="../actions/delete.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             Delete Household

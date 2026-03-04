@@ -11,11 +11,12 @@ $id = (int)$_POST['id'];
 try {
     $pdo->beginTransaction();
 
+    // Update primary household
     $stmt = $pdo->prepare("
         UPDATE households SET
             last_name = ?, first_name = ?, middle_name = ?,
             home_status = ?, block = ?, lot = ?, street = ?,
-            birthday = ?, age = ?, gender = ?,
+            birthday = ?, gender = ?,
             contact_no = ?, occupation = ?, num_pets = ?,
             updated_at = NOW()
         WHERE id = ?
@@ -30,7 +31,6 @@ try {
         $_POST['lot'] ?? null,
         $_POST['street'] ?? null,
         $_POST['birthday'] ?: null,
-        $_POST['age'] ?: null,
         $_POST['gender'] ?? null,
         $_POST['contact_no'] ?? null,
         $_POST['occupation'] ?? null,
@@ -38,8 +38,38 @@ try {
         $id
     ]);
 
+    // Delete existing additional members
+    $pdo->prepare("DELETE FROM household_members WHERE household_id = ?")->execute([$id]);
+
+    // Insert updated additional members
+    if (!empty($_POST['members']) && is_array($_POST['members'])) {
+        $mstmt = $pdo->prepare("
+            INSERT INTO household_members 
+            (household_id, first_name, last_name, middle_name, relation, birthday, gender, contact_no, occupation)
+            VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+        ");
+
+        foreach ($_POST['members'] as $m) {
+            if (empty($m['first_name']) || empty($m['last_name']) || empty($m['relation'])) continue;
+
+            $mstmt->execute([
+                $id,
+                $m['first_name'] ?? '',
+                $m['last_name'] ?? '',
+                $m['middle_name'] ?? null,
+                $m['relation'] ?? '',
+                $m['birthday'] ?: null,
+                $m['gender'] ?? null,
+                $m['contact_no'] ?? null,
+                $m['occupation'] ?? null
+            ]);
+        }
+    }
+
+    // Delete existing vehicles
     $pdo->prepare("DELETE FROM vehicles WHERE household_id = ?")->execute([$id]);
 
+    // Insert updated vehicles
     if (!empty($_POST['vehicles']) && is_array($_POST['vehicles'])) {
         $vstmt = $pdo->prepare("
             INSERT INTO vehicles (household_id, brand, type_model, color, plate_no)
@@ -61,7 +91,7 @@ try {
 
     $pdo->commit();
 
-    header("Location: ../actions/view.php?id=$id&msg=Household updated successfully");
+    header("Location: ../pages/view.php?id=$id&msg=Household updated successfully");
     exit;
 
 } catch (Exception $e) {

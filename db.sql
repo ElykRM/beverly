@@ -11,7 +11,7 @@ CREATE TABLE households (
     block VARCHAR(50),
     lot VARCHAR(50),
     street VARCHAR(150),
-    subdivision VARCHAR(200) DEFAULT 'Beverlyhomes Subd. Brgy Hugo Perez Trece Martires Cavite',
+    subdivision VARCHAR(200) DEFAULT 'Beverly homes Subd. Brgy Hugo Perez Trece Martires Cavite',
     birthday DATE,
     age INT,
     gender ENUM('Male', 'Female', 'Other'),
@@ -44,6 +44,22 @@ CREATE TABLE payments (
     paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
 );
+
+-- Household Members (additional members per household)
+CREATE TABLE IF NOT EXISTS household_members (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    household_id INT NOT NULL,
+    first_name VARCHAR(100) NOT NULL,
+    last_name VARCHAR(100) NOT NULL,
+    middle_name VARCHAR(100) DEFAULT NULL,
+    relation VARCHAR(50) NOT NULL COMMENT 'e.g. Spouse, Child, Parent, Tenant, Sibling, Other',
+    birthday DATE DEFAULT NULL,
+    gender ENUM('Male', 'Female', 'Other') DEFAULT NULL,
+    contact_no VARCHAR(20) DEFAULT NULL,
+    occupation VARCHAR(100) DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_general_ci;
 
 -- Speed up common searches
 CREATE INDEX idx_name ON households(last_name, first_name);

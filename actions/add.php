@@ -2,11 +2,12 @@
 
 <div class="mb-10">
     <h2 class="text-3xl font-bold text-green-800 mb-2">New Household / Member Registration</h2>
-    <p class="text-gray-600 mb-8">Enter details for the primary household member. Vehicles can be added below.</p>
+    <p class="text-gray-600 mb-8">Enter details for the primary household member. Additional members and vehicles can be added below.</p>
 </div>
 
 <form action="../actions/save_household.php" method="POST" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
 
+    <!-- Primary Member - Names & Status -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
@@ -39,6 +40,7 @@
         </div>
     </div>
 
+    <!-- Address -->
     <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-8">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Block</label>
@@ -54,14 +56,11 @@
         </div>
     </div>
 
-    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-6 gap-6 mb-8">
+    <!-- Primary Member Personal Info -->
+    <div class="grid grid-cols-1 md:grid-cols-3 lg:grid-cols-5 gap-6 mb-12">
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-            <input type="date" name="birthday" id="birthday" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-        </div>
-        <div>
-            <label class="block text-sm font-medium text-gray-700 mb-1">Age</label>
-            <input type="number" name="age" id="age" min="0" readonly class="w-full px-4 py-2 border border-gray-300 rounded-lg bg-gray-50">
+            <input type="date" name="birthday" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
@@ -86,6 +85,54 @@
         </div>
     </div>
 
+    <!-- Additional Household Members -->
+    <div class="border-t border-gray-200 pt-8 mb-12">
+        <h3 class="text-xl font-semibold text-green-800 mb-4">Additional Household Members</h3>
+        <p class="text-sm text-gray-600 mb-4">Add spouse, children, parents, tenants, etc. (optional)</p>
+        
+        <div id="members-container" class="space-y-8">
+            <!-- Default empty row -->
+            <div class="member-row grid grid-cols-1 md:grid-cols-6 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+                    <input type="text" name="members[0][first_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+                    <input type="text" name="members[0][last_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+                    <input type="text" name="members[0][middle_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+                    <select name="members[0][relation]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                        <option value="">Select</option>
+                        <option value="Spouse">Spouse</option>
+                        <option value="Child">Child</option>
+                        <option value="Parent">Parent</option>
+                        <option value="Sibling">Sibling</option>
+                        <option value="Tenant">Tenant</option>
+                        <option value="Other">Other</option>
+                    </select>
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+                    <input type="date" name="members[0][birthday]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                </div>
+                <div class="flex items-end">
+                    <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium">Remove</button>
+                </div>
+            </div>
+        </div>
+
+        <button type="button" id="add-member-btn" class="mt-4 inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg">
+            + Add Member
+        </button>
+    </div>
+
+    <!-- Vehicles Section -->
     <div class="border-t border-gray-200 pt-8">
         <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles</h3>
         
@@ -118,6 +165,7 @@
         </button>
     </div>
 
+    <!-- Submit -->
     <div class="mt-12 text-right">
         <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
             Save Household Record
@@ -126,23 +174,61 @@
 </form>
 
 <script>
-// Auto-calculate age from birthday
-document.getElementById('birthday').addEventListener('change', function() {
-    const birthDate = new Date(this.value);
-    if (!isNaN(birthDate)) {
-        const today = new Date();
-        let age = today.getFullYear() - birthDate.getFullYear();
-        const m = today.getMonth() - birthDate.getMonth();
-        if (m < 0 || (m === 0 && today.getDate() < birthDate.getDate())) {
-            age--;
+// Additional Members - Dynamic rows
+let memberIndex = 1;
+
+document.getElementById('add-member-btn').addEventListener('click', function() {
+    const container = document.getElementById('members-container');
+    const newRow = document.createElement('div');
+    newRow.className = 'member-row grid grid-cols-1 md:grid-cols-6 gap-6';
+    newRow.innerHTML = `
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
+            <input type="text" name="members[${memberIndex}][first_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
+            <input type="text" name="members[${memberIndex}][last_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
+            <input type="text" name="members[${memberIndex}][middle_name]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
+            <select name="members[${memberIndex}][relation]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                <option value="">Select</option>
+                <option value="Spouse">Spouse</option>
+                <option value="Child">Child</option>
+                <option value="Parent">Parent</option>
+                <option value="Sibling">Sibling</option>
+                <option value="Tenant">Tenant</option>
+                <option value="Other">Other</option>
+            </select>
+        </div>
+        <div>
+            <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
+            <input type="date" name="members[${memberIndex}][birthday]" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+        </div>
+        <div class="flex items-end">
+            <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium">Remove</button>
+        </div>
+    `;
+    container.appendChild(newRow);
+    memberIndex++;
+});
+
+// Remove member row
+document.addEventListener('click', function(e) {
+    if (e.target.classList.contains('remove-member')) {
+        const row = e.target.closest('.member-row');
+        if (document.querySelectorAll('.member-row').length > 1) {
+            row.remove();
         }
-        document.getElementById('age').value = age >= 0 ? age : '';
-    } else {
-        document.getElementById('age').value = '';
     }
 });
 
-// Dynamic vehicle rows (unchanged)
+// Vehicles - Dynamic rows
 let vehicleIndex = 1;
 
 document.getElementById('add-vehicle-btn').addEventListener('click', function() {
