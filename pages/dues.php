@@ -105,15 +105,7 @@ foreach ($payments as $p) {
         </div>
     <?php endif; ?>
 
-    <!-- Back to Main Menu (optional - remove if you prefer header only) -->
-    <div class="mt-12 mb-8 text-center">
-        <a href="../pages/index.php" class="inline-flex items-center gap-2 bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow-lg transition transform hover:scale-105">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-5 w-5" viewBox="0 0 20 20" fill="currentColor">
-                <path fill-rule="evenodd" d="M9.707 16.707a1 1 0 01-1.414 0l-6-6a1 1 0 010-1.414l6-6a1 1 0 011.414 1.414L5.414 9H17a1 1 0 110 2H5.414l4.293 4.293a1 1 0 010 1.414z" clip-rule="evenodd" />
-            </svg>
-            Back to Main Menu
-        </a>
-    </div>
+
 </div>
 
 <?php include '../includes/footer.php'; ?>

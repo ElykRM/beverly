@@ -11,7 +11,7 @@ CREATE TABLE households (
     block VARCHAR(50),
     lot VARCHAR(50),
     street VARCHAR(150),
-    subdivision VARCHAR(200) DEFAULT 'Beverly homes Subd. Brgy Hugo Perez Trece Martires Cavite',
+    subdivision VARCHAR(200) DEFAULT 'Beverly Homes Subd. Brgy Hugo Perez Trece Martires Cavite',
     birthday DATE,
     age INT,
     gender ENUM('Male', 'Female', 'Other'),

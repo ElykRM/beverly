@@ -43,7 +43,7 @@ $success_msg = $_GET['msg'] ?? '';
 <div class="mb-10">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 class="text-3xl font-bold text-green-800">Household Details</h2>
-        <a href="habitants.php" class="text-green-700 hover:text-green-900 font-medium">&larr; Back to List</a>
+        <a href="../pages/habitants.php" class="text-green-700 hover:text-green-900 font-medium">&larr; Back to List</a>
     </div>
 </div>
 
@@ -203,7 +203,7 @@ $success_msg = $_GET['msg'] ?? '';
 </div>
 
 <div class="mt-8 flex flex-wrap justify-center gap-4">
-    <a href="edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+    <a href="../actions/edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Edit Household
     </a>
     <a href="../pages/payment.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
