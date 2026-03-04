@@ -454,4 +454,14 @@ document.addEventListener('click', function(e) {
 });
 </script>
 
+<!-- Cancel + Update buttons at bottom -->
+<div class="mt-12 flex flex-col sm:flex-row justify-end gap-4">
+    <a href="../actions/view.php?id=<?= $id ?>" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-10 rounded-lg shadow transition text-center">
+        Cancel
+    </a>
+    <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
+        Update Household Record
+    </button>
+</div>
+
 <?php include '../includes/footer.php'; ?>
