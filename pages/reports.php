@@ -182,7 +182,7 @@ foreach ($households as $h) {
         <div>
             <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
             <input type="text" name="name" id="name" value="<?= htmlspecialchars($name_search) ?>" 
-                   placeholder="e.g. Reyes" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
+                   placeholder="e.g. John" class="w-full px-4 py-2 border border-gray-300 rounded-lg">
         </div>
         <div>
             <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
