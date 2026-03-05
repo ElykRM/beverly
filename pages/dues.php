@@ -24,33 +24,47 @@ $householdsStmt = $pdo->query("
 ");
 $households = $householdsStmt->fetchAll();
 
-// Fetch payments that touch the selected year
+// Fetch payments that touch the selected year + amount
 $paymentsRaw = [];
 if (!empty($households)) {
     $pstmt = $pdo->prepare("
-        SELECT household_id, period_year, period_month, period_to_year, period_to_month
+        SELECT household_id, period_year, period_month, period_to_year, period_to_month, amount
         FROM payments
         WHERE (period_year = ? OR period_to_year = ? OR 
                (period_year <= ? AND (period_to_year IS NULL OR period_to_year >= ?)))
     ");
     $pstmt->execute([$selectedYear, $selectedYear, $selectedYear, $selectedYear]);
     $paymentsRaw = $pstmt->fetchAll();
+}
 
-    $paidMonths = [];
-    foreach ($paymentsRaw as $p) {
-        $hid = $p['household_id'];
-        $startY = (int)$p['period_year'];
-        $startM = (int)$p['period_month'];
-        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
-        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
+// Build per-household per-month amount map
+$monthlyAmounts = []; // [household_id][year-month] = amount for that month
+foreach ($paymentsRaw as $p) {
+    $hid = $p['household_id'];
+    $startY = (int)$p['period_year'];
+    $startM = (int)$p['period_month'];
+    $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
+    $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
+    $totalAmount = (float)$p['amount'];
 
-        for ($y = $startY; $y <= $endY; $y++) {
-            if ($y != $selectedYear) continue;
-            $mFrom = ($y == $startY) ? $startM : 1;
-            $mTo   = ($y == $endY)   ? $endM   : 12;
-            for ($m = $mFrom; $m <= $mTo; $m++) {
-                $paidMonths[$hid][$y . '-' . $m] = true;
-            }
+    // Count how many months this payment covers (in selected year or overall)
+    $monthCount = 0;
+    for ($y = $startY; $y <= $endY; $y++) {
+        $mFrom = ($y == $startY) ? $startM : 1;
+        $mTo   = ($y == $endY)   ? $endM   : 12;
+        $monthCount += $mTo - $mFrom + 1;
+    }
+
+    // Distribute amount equally across all covered months
+    $perMonth = $monthCount > 0 ? $totalAmount / $monthCount : 0;
+
+    for ($y = $startY; $y <= $endY; $y++) {
+        if ($y != $selectedYear) continue; // only show for selected year
+        $mFrom = ($y == $startY) ? $startM : 1;
+        $mTo   = ($y == $endY)   ? $endM   : 12;
+        for ($m = $mFrom; $m <= $mTo; $m++) {
+            $key = "$y-$m";
+            $monthlyAmounts[$hid][$key] = round($perMonth, 2);
         }
     }
 }
@@ -64,7 +78,7 @@ if (!empty($households)) {
         </a>
     </div>
 
-    <p class="text-gray-600 mb-6">View payment status across all households for the selected year.</p>
+    <p class="text-gray-600 mb-6">View payment status and amounts per month for the selected year.</p>
 
     <!-- Year selector -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-10">
@@ -113,7 +127,8 @@ if (!empty($households)) {
                             </td>
                             <?php for ($m = 1; $m <= 12; $m++): 
                                 $key = "$selectedYear-$m";
-                                $isPaid = isset($paidMonths[$hid][$key]);
+                                $isPaid = isset($monthlyAmounts[$hid][$key]);
+                                $amount = $isPaid ? $monthlyAmounts[$hid][$key] : 0;
 
                                 $dueDate = new DateTime("$selectedYear-$m-01");
                                 $today   = new DateTime();
@@ -121,21 +136,21 @@ if (!empty($households)) {
                                 $isFuture  = $dueDate > $today;
 
                                 $class = 'bg-gray-100 text-gray-600 text-xs';
-                                $text  = '—';
+                                $display = '—';
 
                                 if ($isPaid) {
                                     $class = 'bg-green-100 text-green-800 font-medium';
-                                    $text  = 'Paid';
+                                    $display = '₱' . number_format($amount, 2);
                                 } elseif ($isOverdue) {
                                     $class = 'bg-red-100 text-red-800 font-medium';
-                                    $text  = 'Overdue';
+                                    $display = 'Overdue';
                                 } elseif ($isFuture) {
                                     $class = 'bg-gray-50 text-gray-500';
-                                    $text  = 'Future';
+                                    $display = 'Future';
                                 }
                             ?>
                                 <td class="px-3 py-4 text-center <?= $class ?>">
-                                    <?= $text ?>
+                                    <?= $display ?>
                                 </td>
                             <?php endfor; ?>
                         </tr>
@@ -155,17 +170,17 @@ if (!empty($households)) {
                 Showing <span id="showing-count">0</span> of <span id="total-filtered">0</span> households
             </div>
             <div class="flex gap-2 items-center">
-                <button id="prev-page" class="px-4 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+                <button id="prev-page" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
                 <div id="page-numbers" class="flex gap-2"></div>
-                <button id="next-page" class="px-4 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
+                <button id="next-page" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
             </div>
         </div>
 
-        <!-- Legend -->
+        <!-- Legend (updated to mention amounts) -->
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid
+                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount shown)
                 </div>
                 <div class="flex items-center">
                     <span class="inline-block w-5 h-5 bg-red-100 border border-red-300 mr-2 rounded"></span> Overdue
@@ -179,8 +194,7 @@ if (!empty($households)) {
 </div>
 
 <script>
-// Client-side filtering + pagination for dues.php
-const nameFilter   = document.getElementById('name-filter') || null; // no name filter on dues, but keeping for future
+// Client-side pagination for dues.php (no additional filtering for now)
 const rows         = Array.from(document.querySelectorAll('.household-row'));
 const noResults    = document.getElementById('no-results');
 const prevBtn      = document.getElementById('prev-page');
@@ -192,14 +206,9 @@ const totalFilteredEl = document.getElementById('total-filtered');
 let currentPage = 1;
 const perPage = 10;
 
-function getVisibleRows() {
-    // For dues, no name/status filter yet — all rows are visible
-    // Add filter logic here later if you add search inputs
-    return rows;
-}
-
 function updateTable() {
-    const visibleRows = getVisibleRows();
+    // All rows are visible (year selector is server-side)
+    const visibleRows = rows;
 
     totalFilteredEl.textContent = visibleRows.length;
     showingCount.textContent = Math.min(visibleRows.length, perPage);
@@ -243,8 +252,7 @@ prevBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
-    const visibleRows = getVisibleRows();
-    const totalPages = Math.ceil(visibleRows.length / perPage);
+    const totalPages = Math.ceil(rows.length / perPage);
     if (currentPage < totalPages) {
         currentPage++;
         updateTable();
