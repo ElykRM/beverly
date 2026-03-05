@@ -15,11 +15,18 @@ try {
     }
 
     $or_no   = trim($_POST['or_no'] ?? '');
-    $amount  = (float)($_POST['amount'] ?? 0);
+    $amount_raw = trim($_POST['amount'] ?? '0');
+    $amount  = filter_var($amount_raw, FILTER_VALIDATE_FLOAT);
     $remarks = trim($_POST['remarks'] ?? '');
+    $is_promo = isset($_POST['is_promo']) && $_POST['is_promo'] == '1' ? 1 : 0;
 
-    if ($or_no === '') throw new Exception("OR number is required.");
-    if ($amount <= 0)   throw new Exception("Amount must be greater than zero.");
+    if ($or_no === '') {
+        throw new Exception("OR number is required.");
+    }
+
+    if ($amount === false || $amount <= 0) {
+        throw new Exception("Amount must be a valid number greater than zero. Received: '$amount_raw'");
+    }
 
     $payment_type = $_POST['payment_type'] ?? 'single';
 
@@ -36,7 +43,6 @@ try {
         $period_to_year   = null;
         $period_to_month  = null;
     } else {
-        // Range
         $from_month = $_POST['from_month'] ?? '';
         $from_year  = (int)($_POST['from_year'] ?? 0);
         $to_month   = $_POST['to_month'] ?? '';
@@ -48,7 +54,6 @@ try {
             throw new Exception("Invalid from/to dates.");
         }
 
-        // Basic validation: from <= to
         $from = mktime(0,0,0, $from_month, 1, $from_year);
         $to   = mktime(0,0,0, $to_month,   1, $to_year);
         if ($from > $to) {
@@ -61,10 +66,19 @@ try {
         $period_to_month  = (int)$to_month;
     }
 
+    // If promo is checked, force full year (safety net)
+    if ($is_promo) {
+        $period_year      = $period_year ?? $currentYear;
+        $period_month     = 1;
+        $period_to_year   = $period_year;
+        $period_to_month  = 12;
+        $amount           = 1000.00; // enforce promo price
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO payments 
-        (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+        (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks, is_promo)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -75,7 +89,8 @@ try {
         $period_to_year,
         $period_to_month,
         $amount,
-        $remarks ?: null
+        $remarks ?: null,
+        $is_promo
     ]);
 
     $pdo->commit();
@@ -88,6 +103,5 @@ try {
     echo "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg mx-auto max-w-4xl'>
             Error: " . htmlspecialchars($e->getMessage()) . "
           </div>";
-    // In production: log error, show user-friendly message, don't expose raw exception
 }
 ?>

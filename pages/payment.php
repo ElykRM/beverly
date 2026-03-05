@@ -32,9 +32,9 @@ $years = range($currentYear - 5, $currentYear + 10);
         </a>
     </div>
 
-    <p class="text-gray-600 mb-8">Pay for one month or a range of months at once.</p>
+    <p class="text-gray-600 mb-8">Pay for one month or a range of months. Yearly Promo automatically covers January–December.</p>
 
-    <form action="../actions/save_payment.php" method="POST" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200 max-w-4xl mx-auto">
+    <form action="../actions/save_payment.php" method="POST" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200 max-w-4xl mx-auto" id="payment-form">
 
         <!-- Household -->
         <div class="mb-8">
@@ -54,14 +54,23 @@ $years = range($currentYear - 5, $currentYear + 10);
             <label class="block text-sm font-medium text-gray-700 mb-2">Payment covers</label>
             <div class="flex gap-8">
                 <label class="inline-flex items-center cursor-pointer">
-                    <input type="radio" name="payment_type" value="single" checked class="form-radio text-green-600">
+                    <input type="radio" name="payment_type" value="single" checked class="form-radio text-green-600" id="type-single">
                     <span class="ml-2">Single month</span>
                 </label>
                 <label class="inline-flex items-center cursor-pointer">
-                    <input type="radio" name="payment_type" value="range" class="form-radio text-green-600">
+                    <input type="radio" name="payment_type" value="range" class="form-radio text-green-600" id="type-range">
                     <span class="ml-2">Range of months</span>
                 </label>
             </div>
+        </div>
+
+        <!-- Promo checkbox -->
+        <div class="mb-8">
+            <label class="inline-flex items-center cursor-pointer">
+                <input type="checkbox" name="is_promo" id="is_promo" value="1" class="form-checkbox text-green-600 rounded">
+                <span class="ml-2 text-sm font-medium text-gray-700">Apply Yearly Promo (₱1,000 for full year Jan–Dec)</span>
+            </label>
+            <p class="text-xs text-gray-500 mt-1">When checked, payment automatically covers the full selected year.</p>
         </div>
 
         <!-- Single month -->
@@ -139,7 +148,12 @@ $years = range($currentYear - 5, $currentYear + 10);
             </div>
             <div>
                 <label for="amount" class="block text-sm font-medium text-gray-700 mb-2">Total Amount Paid (₱)</label>
-                <input type="number" name="amount" id="amount" step="0.01" min="0" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="number" name="amount" id="amount" step="0.01" min="0" required 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                       value="0.00">
+                <p id="amount-note" class="text-xs text-gray-500 mt-1 hidden italic">
+                    Locked to ₱1,000.00 for Yearly Promo (Jan–Dec)
+                </p>
             </div>
             <div class="md:col-span-2">
                 <label for="remarks" class="block text-sm font-medium text-gray-700 mb-2">Remarks (optional)</label>
@@ -147,8 +161,8 @@ $years = range($currentYear - 5, $currentYear + 10);
             </div>
         </div>
 
-        <!-- Submit button moved to bottom -->
-        <div class="text-right">
+        <!-- Submit -->
+        <div class="text-right mt-12">
             <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
                 Record Payment
             </button>
@@ -158,13 +172,80 @@ $years = range($currentYear - 5, $currentYear + 10);
 
 <script>
 // Toggle single vs range
-document.querySelectorAll('input[name="payment_type"]').forEach(radio => {
+const typeRadios = document.querySelectorAll('input[name="payment_type"]');
+const singleGroup = document.getElementById('single-group');
+const rangeGroup = document.getElementById('range-group');
+
+typeRadios.forEach(radio => {
     radio.addEventListener('change', () => {
         const isRange = radio.value === 'range';
-        document.getElementById('single-group').classList.toggle('hidden', isRange);
-        document.getElementById('range-group').classList.toggle('hidden', !isRange);
+        singleGroup.classList.toggle('hidden', isRange);
+        rangeGroup.classList.toggle('hidden', !isRange);
+        updatePromoState();
     });
 });
+
+// Promo: force full year + lock amount with readonly
+const promoCheckbox = document.getElementById('is_promo');
+const amountInput = document.getElementById('amount');
+const amountNote = document.getElementById('amount-note');
+let originalAmount = amountInput.value || '0.00';
+
+promoCheckbox.addEventListener('change', updatePromoState);
+
+function updatePromoState() {
+    const isPromo = promoCheckbox.checked;
+
+    if (isPromo) {
+        // Force full year range
+        document.getElementById('type-range').checked = true;
+        typeRadios.forEach(r => r.disabled = true);
+
+        singleGroup.classList.add('hidden');
+        rangeGroup.classList.remove('hidden');
+
+        const yearValue = document.getElementById('single_year')?.value || 
+                          document.getElementById('from_year')?.value || 
+                          '<?= $currentYear ?>';
+
+        document.getElementById('from_month').value = '01';
+        document.getElementById('from_year').value = yearValue;
+        document.getElementById('to_month').value = '12';
+        document.getElementById('to_year').value = yearValue;
+
+        document.querySelectorAll('#range-group select').forEach(sel => sel.disabled = true);
+
+        // Lock amount visually & functionally
+        originalAmount = amountInput.value;
+        amountInput.value = '1000.00';
+        amountInput.readOnly = true;
+        amountInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        amountNote.classList.remove('hidden');
+    } else {
+        // Restore normal
+        typeRadios.forEach(r => r.disabled = false);
+        document.querySelectorAll('#range-group select').forEach(sel => sel.disabled = false);
+
+        amountInput.readOnly = false;
+        amountInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+        amountNote.classList.add('hidden');
+
+        amountInput.value = originalAmount;
+    }
+}
+
+// Extra safety: block submit if amount invalid
+document.getElementById('payment-form').addEventListener('submit', function(e) {
+    const amt = parseFloat(amountInput.value);
+    if (isNaN(amt) || amt <= 0) {
+        e.preventDefault();
+        alert('Amount must be greater than zero.');
+        amountInput.focus();
+    }
+});
+
+// Initial state
+updatePromoState();
 </script>
 
 <?php include '../includes/footer.php'; ?>

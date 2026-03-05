@@ -24,11 +24,11 @@ $householdsStmt = $pdo->query("
 ");
 $households = $householdsStmt->fetchAll();
 
-// Fetch payments that touch the selected year + amount
+// Fetch payments with is_promo
 $paymentsRaw = [];
 if (!empty($households)) {
     $pstmt = $pdo->prepare("
-        SELECT household_id, period_year, period_month, period_to_year, period_to_month, amount
+        SELECT household_id, period_year, period_month, period_to_year, period_to_month, amount, is_promo
         FROM payments
         WHERE (period_year = ? OR period_to_year = ? OR 
                (period_year <= ? AND (period_to_year IS NULL OR period_to_year >= ?)))
@@ -37,8 +37,8 @@ if (!empty($households)) {
     $paymentsRaw = $pstmt->fetchAll();
 }
 
-// Build per-household per-month amount map
-$monthlyAmounts = []; // [household_id][year-month] = amount for that month
+// Build monthly data
+$monthlyData = [];
 foreach ($paymentsRaw as $p) {
     $hid = $p['household_id'];
     $startY = (int)$p['period_year'];
@@ -46,8 +46,8 @@ foreach ($paymentsRaw as $p) {
     $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
     $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
     $totalAmount = (float)$p['amount'];
+    $isPromo = (int)$p['is_promo'];
 
-    // Count how many months this payment covers (in selected year or overall)
     $monthCount = 0;
     for ($y = $startY; $y <= $endY; $y++) {
         $mFrom = ($y == $startY) ? $startM : 1;
@@ -55,16 +55,18 @@ foreach ($paymentsRaw as $p) {
         $monthCount += $mTo - $mFrom + 1;
     }
 
-    // Distribute amount equally across all covered months
     $perMonth = $monthCount > 0 ? $totalAmount / $monthCount : 0;
 
     for ($y = $startY; $y <= $endY; $y++) {
-        if ($y != $selectedYear) continue; // only show for selected year
+        if ($y != $selectedYear) continue;
         $mFrom = ($y == $startY) ? $startM : 1;
         $mTo   = ($y == $endY)   ? $endM   : 12;
         for ($m = $mFrom; $m <= $mTo; $m++) {
             $key = "$y-$m";
-            $monthlyAmounts[$hid][$key] = round($perMonth, 2);
+            $monthlyData[$hid][$key] = [
+                'amount'   => round($perMonth, 2),
+                'is_promo' => $isPromo
+            ];
         }
     }
 }
@@ -127,8 +129,10 @@ foreach ($paymentsRaw as $p) {
                             </td>
                             <?php for ($m = 1; $m <= 12; $m++): 
                                 $key = "$selectedYear-$m";
-                                $isPaid = isset($monthlyAmounts[$hid][$key]);
-                                $amount = $isPaid ? $monthlyAmounts[$hid][$key] : 0;
+                                $monthData = $monthlyData[$hid][$key] ?? null;
+                                $isPaid = $monthData !== null;
+                                $amount = $monthData['amount'] ?? 0;
+                                $isPromo = $monthData['is_promo'] ?? 0;
 
                                 $dueDate = new DateTime("$selectedYear-$m-01");
                                 $today   = new DateTime();
@@ -139,8 +143,8 @@ foreach ($paymentsRaw as $p) {
                                 $display = '—';
 
                                 if ($isPaid) {
-                                    $class = 'bg-green-100 text-green-800 font-medium';
-                                    $display = '₱' . number_format($amount, 2);
+                                    $class = 'bg-green-100 text-green-800 font-medium text-xs';
+                                    $display = $isPromo ? '<span class="font-bold text-purple-700">Promo</span>' : '₱' . number_format($amount, 2);
                                 } elseif ($isOverdue) {
                                     $class = 'bg-red-100 text-red-800 font-medium';
                                     $display = 'Overdue';
@@ -164,7 +168,7 @@ foreach ($paymentsRaw as $p) {
             </table>
         </div>
 
-        <!-- Pagination controls -->
+        <!-- Pagination -->
         <div id="pagination" class="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
             <div class="text-sm text-gray-600">
                 Showing <span id="showing-count">0</span> of <span id="total-filtered">0</span> households
@@ -176,11 +180,11 @@ foreach ($paymentsRaw as $p) {
             </div>
         </div>
 
-        <!-- Legend (updated to mention amounts) -->
+        <!-- Legend -->
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount shown)
+                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
                 </div>
                 <div class="flex items-center">
                     <span class="inline-block w-5 h-5 bg-red-100 border border-red-300 mr-2 rounded"></span> Overdue
@@ -194,7 +198,7 @@ foreach ($paymentsRaw as $p) {
 </div>
 
 <script>
-// Client-side pagination for dues.php (no additional filtering for now)
+// Pagination for dues.php
 const rows         = Array.from(document.querySelectorAll('.household-row'));
 const noResults    = document.getElementById('no-results');
 const prevBtn      = document.getElementById('prev-page');
@@ -207,8 +211,7 @@ let currentPage = 1;
 const perPage = 10;
 
 function updateTable() {
-    // All rows are visible (year selector is server-side)
-    const visibleRows = rows;
+    const visibleRows = rows; // no additional client filter
 
     totalFilteredEl.textContent = visibleRows.length;
     showingCount.textContent = Math.min(visibleRows.length, perPage);
@@ -259,7 +262,6 @@ nextBtn.addEventListener('click', () => {
     }
 });
 
-// Initial load
 updateTable();
 </script>
 

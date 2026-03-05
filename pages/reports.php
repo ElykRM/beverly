@@ -269,7 +269,7 @@ foreach ($households as $h) {
                     <?php foreach ($results_with_status as $h): ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-name="<?= strtolower($h['first_name'] . ' ' . $h['last_name'] . ' ' . ($h['block'] ?? '') . ' ' . ($h['lot'] ?? '')) ?>"
-                            onclick="window.location.href='view.php?id=<?= $h['id'] ?>'">
+                            onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
                             <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
                                 <?= htmlspecialchars($h['first_name'] . ' ' . $h['last_name']) ?>
                             </td>
