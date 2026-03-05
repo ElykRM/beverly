@@ -2,11 +2,10 @@
 include '../db.php';
 include '../includes/header.php';
 
-// Current year and range (default to current)
+// Current year and range
 $currentYear = (int)date('Y');
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $currentYear;
 
-// Limit year range
 $minYear = $currentYear - 5;
 $maxYear = $currentYear + 5;
 if ($selectedYear < $minYear || $selectedYear > $maxYear) {
@@ -15,7 +14,7 @@ if ($selectedYear < $minYear || $selectedYear > $maxYear) {
 $years = range($minYear, $maxYear);
 
 // Months
-$months = [1=>'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+$months = [1=>'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
 
 // Fetch all households
 $householdsStmt = $pdo->query("
@@ -26,7 +25,7 @@ $householdsStmt = $pdo->query("
 $households = $householdsStmt->fetchAll();
 
 // Fetch payments that touch the selected year
-$payments = [];
+$paymentsRaw = [];
 if (!empty($households)) {
     $pstmt = $pdo->prepare("
         SELECT household_id, period_year, period_month, period_to_year, period_to_month
@@ -85,7 +84,7 @@ if (!empty($households)) {
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto">
-            <table class="min-w-full divide-y divide-gray-200">
+            <table id="dues-table" class="min-w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[220px]">
@@ -98,14 +97,16 @@ if (!empty($households)) {
                         <?php endforeach; ?>
                     </tr>
                 </thead>
-                <tbody class="bg-white divide-y divide-gray-200">
+                <tbody class="bg-white divide-y divide-gray-200" id="table-body">
                     <?php foreach ($households as $h): ?>
                         <?php
                         $hid = $h['id'];
                         $name = htmlspecialchars($h['last_name'] . ', ' . $h['first_name']);
                         $addr = $h['block'] && $h['lot'] ? "Block {$h['block']} Lot {$h['lot']}" : '—';
                         ?>
-                        <tr class="hover:bg-gray-50 transition-colors">
+                        <tr class="hover:bg-gray-50 transition-colors household-row"
+                            data-name="<?= strtolower($name . ' ' . $addr) ?>"
+                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
@@ -139,8 +140,25 @@ if (!empty($households)) {
                             <?php endfor; ?>
                         </tr>
                     <?php endforeach; ?>
+                    <tr id="no-results" style="display: none;">
+                        <td colspan="<?= count($months) + 1 ?>" class="px-6 py-12 text-center text-gray-500 italic">
+                            No households match the current filters.
+                        </td>
+                    </tr>
                 </tbody>
             </table>
+        </div>
+
+        <!-- Pagination controls -->
+        <div id="pagination" class="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+            <div class="text-sm text-gray-600">
+                Showing <span id="showing-count">0</span> of <span id="total-filtered">0</span> households
+            </div>
+            <div class="flex gap-2 items-center">
+                <button id="prev-page" class="px-4 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+                <div id="page-numbers" class="flex gap-2"></div>
+                <button id="next-page" class="px-4 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
+            </div>
         </div>
 
         <!-- Legend -->
@@ -158,13 +176,83 @@ if (!empty($households)) {
             </div>
         </div>
     </div>
-
-    <!-- Optional action button (if you add new dues entry later) -->
-    <!-- <div class="text-center sm:text-right mt-6">
-        <a href="some-new-dues-page.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-            + Record Bulk Dues
-        </a>
-    </div> -->
 </div>
+
+<script>
+// Client-side filtering + pagination for dues.php
+const nameFilter   = document.getElementById('name-filter') || null; // no name filter on dues, but keeping for future
+const rows         = Array.from(document.querySelectorAll('.household-row'));
+const noResults    = document.getElementById('no-results');
+const prevBtn      = document.getElementById('prev-page');
+const nextBtn      = document.getElementById('next-page');
+const pageNumbers  = document.getElementById('page-numbers');
+const showingCount = document.getElementById('showing-count');
+const totalFilteredEl = document.getElementById('total-filtered');
+
+let currentPage = 1;
+const perPage = 10;
+
+function getVisibleRows() {
+    // For dues, no name/status filter yet — all rows are visible
+    // Add filter logic here later if you add search inputs
+    return rows;
+}
+
+function updateTable() {
+    const visibleRows = getVisibleRows();
+
+    totalFilteredEl.textContent = visibleRows.length;
+    showingCount.textContent = Math.min(visibleRows.length, perPage);
+
+    rows.forEach(r => r.style.display = 'none');
+
+    const start = (currentPage - 1) * perPage;
+    const end   = start + perPage;
+    const pageRows = visibleRows.slice(start, end);
+
+    pageRows.forEach(row => row.style.display = '');
+
+    noResults.style.display = visibleRows.length === 0 ? '' : 'none';
+
+    const totalPages = Math.ceil(visibleRows.length / perPage) || 1;
+    currentPage = Math.min(currentPage, totalPages);
+
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages;
+
+    pageNumbers.innerHTML = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = `px-3 py-1 rounded-lg text-sm font-medium ${
+            i === currentPage ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+        }`;
+        btn.onclick = () => {
+            currentPage = i;
+            updateTable();
+        };
+        pageNumbers.appendChild(btn);
+    }
+}
+
+prevBtn.addEventListener('click', () => {
+    if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+    }
+});
+
+nextBtn.addEventListener('click', () => {
+    const visibleRows = getVisibleRows();
+    const totalPages = Math.ceil(visibleRows.length / perPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        updateTable();
+    }
+});
+
+// Initial load
+updateTable();
+</script>
 
 <?php include '../includes/footer.php'; ?>

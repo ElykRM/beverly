@@ -203,13 +203,15 @@
         </div>
     </div>
 
-    <!-- Save button at bottom -->
-    <div class="text-right mt-8">
-        <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
-            Save Household Record
-        </button>
-    </div>
-</form>
+<div class="mt-12 flex flex-col sm:flex-row justify-end gap-4">
+    <a href="../pages/habitants.php" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-10 rounded-lg shadow transition text-center">
+        Cancel
+    </a>
+    <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
+        Save Household Record
+    </button>
+</div>
+
 
 <script>
 // ... (your existing member/vehicle dynamic JS code remains unchanged)
@@ -241,18 +243,5 @@ document.addEventListener('click', function(e) {
     }
 });
 </script>
-
-
-<!-- ... (rest of the form remains unchanged until the bottom) -->
-
-<!-- Save + Cancel buttons at bottom -->
-<div class="mt-12 flex flex-col sm:flex-row justify-end gap-4">
-    <a href="../pages/habitants.php" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-10 rounded-lg shadow transition text-center">
-        Cancel
-    </a>
-    <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
-        Save Household Record
-    </button>
-</div>
 
 <?php include '../includes/footer.php'; ?>

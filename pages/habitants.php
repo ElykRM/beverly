@@ -2,14 +2,17 @@
 include '../db.php';
 include '../includes/header.php';
 
-// Fetch ALL households once (client-side filtering)
+// Pagination settings
+$perPage = 10; // ← Change here if you want more/less per page
+
+// Fetch ALL households once (JS will handle filtering + pagination)
 $stmt = $pdo->query("
     SELECT id, last_name, first_name, middle_name, home_status, 
            block, lot, street
     FROM households 
     ORDER BY last_name ASC, first_name ASC
 ");
-$households = $stmt->fetchAll();
+$allHouseholds = $stmt->fetchAll();
 
 $success_msg = $_GET['msg'] ?? '';
 ?>
@@ -56,7 +59,7 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 
     <div class="bg-white rounded-xl shadow-md overflow-hidden border border-gray-200 mb-8">
-        <?php if (empty($households)): ?>
+        <?php if (empty($allHouseholds)): ?>
             <div class="p-12 text-center text-gray-500">
                 No households found in the database.
             </div>
@@ -75,7 +78,7 @@ $success_msg = $_GET['msg'] ?? '';
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200" id="table-body">
-                        <?php foreach ($households as $h): ?>
+                        <?php foreach ($allHouseholds as $h): ?>
                             <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                                 data-lastname="<?= htmlspecialchars(strtolower($h['last_name'] ?? '')) ?>"
                                 data-firstname="<?= htmlspecialchars(strtolower($h['first_name'] ?? '')) ?>"
@@ -113,32 +116,50 @@ $success_msg = $_GET['msg'] ?? '';
                     </tbody>
                 </table>
             </div>
-        <?php endif; ?>
-    </div>
 
-    <!-- New Household button moved below the table -->
-    <div class="text-center sm:text-right mt-6">
-        <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-            + New Household
-        </a>
+            <!-- Pagination controls -->
+            <div id="pagination" class="p-6 bg-gray-50 border-t border-gray-200 flex flex-col sm:flex-row justify-between items-center gap-4">
+                <div class="text-sm text-gray-600">
+                    Showing <span id="showing-count">0</span> of <span id="total-filtered">0</span> households
+                </div>
+                <div class="flex gap-2 items-center">
+                    <button id="prev-page" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+                    <div id="page-numbers" class="flex gap-2"></div>
+                    <button id="next-page" class="px-3 py-1 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
+                </div>
+            </div>
+        <?php endif; ?>
     </div>
 </div>
 
+        <!-- New Household button at bottom -->
+        <div class="text-center sm:text-right mt-6">
+            <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+                + New Household
+            </a>
+        </div>
+
 <script>
-// Real-time filtering (status fixed)
+// Client-side filtering + pagination
 const statusFilter = document.getElementById('status-filter');
 const nameFilter   = document.getElementById('name-filter');
 const clearBtn     = document.getElementById('clear-filters');
-const rows         = document.querySelectorAll('.household-row');
+const rows         = Array.from(document.querySelectorAll('.household-row'));
 const noResults    = document.getElementById('no-results');
+const prevBtn      = document.getElementById('prev-page');
+const nextBtn      = document.getElementById('next-page');
+const pageNumbers  = document.getElementById('page-numbers');
+const showingCount = document.getElementById('showing-count');
+const totalFilteredEl = document.getElementById('total-filtered');
 
-function filterTable() {
+let currentPage = 1;
+const perPage = 10;
+
+function getVisibleRows() {
     const statusValue = (statusFilter.value || 'ALL').toUpperCase().trim();
     const nameValue   = (nameFilter.value || '').toLowerCase().trim();
 
-    let visibleCount = 0;
-
-    rows.forEach(row => {
+    return rows.filter(row => {
         const rowStatus = (row.dataset.status || '').toUpperCase().trim();
         const fullName  = [
             row.dataset.lastname   || '',
@@ -147,38 +168,94 @@ function filterTable() {
         ].join(' ').toLowerCase().trim();
 
         const address = [
-            row.querySelector('td:nth-child(5)')?.textContent || '',
-            row.querySelector('td:nth-child(6)')?.textContent || '',
-            row.querySelector('td:nth-child(7)')?.textContent || ''
-        ].join(' ').toLowerCase().trim();
+            row.querySelector('td:nth-child(5)')?.textContent?.toLowerCase() || '',
+            row.querySelector('td:nth-child(6)')?.textContent?.toLowerCase() || '',
+            row.querySelector('td:nth-child(7)')?.textContent?.toLowerCase() || ''
+        ].join(' ');
 
         const searchText = fullName + ' ' + address;
 
         const matchStatus = (statusValue === 'ALL' || rowStatus === statusValue);
         const matchName   = searchText.includes(nameValue);
 
-        const shouldShow = matchStatus && matchName;
-
-        row.style.display = shouldShow ? '' : 'none';
-
-        if (shouldShow) visibleCount++;
+        return matchStatus && matchName;
     });
+}
 
-    if (noResults) {
-        noResults.style.display = visibleCount === 0 ? '' : 'none';
+function updateTable() {
+    const visibleRows = getVisibleRows();
+
+    // Update counts
+    totalFilteredEl.textContent = visibleRows.length;
+    showingCount.textContent = Math.min(visibleRows.length, perPage);
+
+    // Hide all rows
+    rows.forEach(r => r.style.display = 'none');
+
+    // Show current page
+    const start = (currentPage - 1) * perPage;
+    const end   = start + perPage;
+    const pageRows = visibleRows.slice(start, end);
+
+    pageRows.forEach(row => row.style.display = '');
+
+    // No results message
+    noResults.style.display = visibleRows.length === 0 ? '' : 'none';
+
+    // Pagination logic
+    const totalPages = Math.ceil(visibleRows.length / perPage) || 1;
+    currentPage = Math.min(currentPage, totalPages); // clamp
+
+    prevBtn.disabled = currentPage <= 1;
+    nextBtn.disabled = currentPage >= totalPages || totalPages === 0;
+
+    // Page numbers
+    pageNumbers.innerHTML = '';
+    for (let i = 1; i <= totalPages; i++) {
+        const btn = document.createElement('button');
+        btn.textContent = i;
+        btn.className = `px-3 py-1 rounded-lg text-sm font-medium ${
+            i === currentPage 
+                ? 'bg-green-600 text-white' 
+                : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+        }`;
+        btn.onclick = () => {
+            currentPage = i;
+            updateTable();
+        };
+        pageNumbers.appendChild(btn);
     }
 }
 
-statusFilter.addEventListener('change', filterTable);
-nameFilter.addEventListener('input',   filterTable);
+// Event listeners
+statusFilter.addEventListener('change', () => { currentPage = 1; updateTable(); });
+nameFilter.addEventListener('input',   () => { currentPage = 1; updateTable(); });
 
 clearBtn.addEventListener('click', () => {
     statusFilter.value = 'ALL';
-    nameFilter.value   = '';
-    filterTable();
+    nameFilter.value = '';
+    currentPage = 1;
+    updateTable();
 });
 
-filterTable();
+prevBtn.addEventListener('click', () => {
+    if (currentPage > 1) {
+        currentPage--;
+        updateTable();
+    }
+});
+
+nextBtn.addEventListener('click', () => {
+    const visibleRows = getVisibleRows();
+    const totalPages = Math.ceil(visibleRows.length / perPage);
+    if (currentPage < totalPages) {
+        currentPage++;
+        updateTable();
+    }
+});
+
+// Initial load
+updateTable();
 </script>
 
 <?php include '../includes/footer.php'; ?>
