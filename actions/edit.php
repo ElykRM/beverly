@@ -41,7 +41,7 @@ $vehicles = $vstmt->fetchAll();
 <form action="../actions/update_household.php" method="POST" class="bg-white p-8 rounded-xl shadow-lg border border-gray-200">
     <input type="hidden" name="id" value="<?= $id ?>">
 
-    <!-- Primary Member + Address – now in one bordered card -->
+    <!-- Primary Member & Address -->
     <div class="member-block border border-gray-200 rounded-lg p-6 bg-gray-50 mb-12">
         <h3 class="text-lg font-semibold text-green-800 mb-4">Primary Household Member & Address</h3>
         
@@ -76,14 +76,16 @@ $vehicles = $vstmt->fetchAll();
         <div class="grid grid-cols-1 md:grid-cols-5 gap-6 mb-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-                <input type="date" name="birthday" value="<?= $household['birthday'] ?? '' ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="date" name="birthday" value="<?= htmlspecialchars($household['birthday'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                 <select name="gender" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                     <option value="">Select</option>
-                    <?php foreach (['Male', 'Female', 'Other'] as $g): ?>
-                        <option value="<?= $g ?>" <?= $household['gender'] === $g ? 'selected' : '' ?>><?= $g ?></option>
+                    <?php 
+                    $currentGender = $household['gender'] ?? ''; 
+                    foreach (['Male', 'Female', 'Other'] as $g): ?>
+                        <option value="<?= $g ?>" <?= $currentGender === $g ? 'selected' : '' ?>><?= $g ?></option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -164,18 +166,20 @@ $vehicles = $vstmt->fetchAll();
                             <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                             <select name="members[0][gender]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                 <option value="">Select</option>
-                                <option value="Male" <?= $m['gender'] === 'Male' ? 'selected' : '' ?>>Male</option>
-                                <option value="Female" <?= $m['gender'] === 'Female' ? 'selected' : '' ?>>Female</option>
-                                <option value="Other" <?= $m['gender'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                                <?php 
+                                $currentGender = ''; // default for new member
+                                foreach (['Male', 'Female', 'Other'] as $g): ?>
+                                    <option value="<?= $g ?>" <?= $currentGender === $g ? 'selected' : '' ?>><?= $g ?></option>
+                                <?php endforeach; ?>
                             </select>
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Contact No.</label>
-                            <input type="tel" name="members[0][contact_no]" value="<?= htmlspecialchars($m['contact_no'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="tel" name="members[0][contact_no]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
-                            <input type="text" name="members[0][occupation]" value="<?= htmlspecialchars($m['occupation'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="members[0][occupation]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                     </div>
 
@@ -193,11 +197,11 @@ $vehicles = $vstmt->fetchAll();
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                                <input type="text" name="members[<?= $index ?>][last_name]" value="<?= htmlspecialchars($m['last_name']) ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                <input type="text" name="members[<?= $index ?>][last_name]" value="<?= htmlspecialchars($m['last_name'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                                <input type="text" name="members[<?= $index ?>][first_name]" value="<?= htmlspecialchars($m['first_name']) ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                <input type="text" name="members[<?= $index ?>][first_name]" value="<?= htmlspecialchars($m['first_name'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
@@ -211,25 +215,24 @@ $vehicles = $vstmt->fetchAll();
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
                                 <select name="members[<?= $index ?>][relation]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                     <option value="">Select</option>
-                                    <option value="Spouse" <?= $m['relation'] === 'Spouse' ? 'selected' : '' ?>>Spouse</option>
-                                    <option value="Child" <?= $m['relation'] === 'Child' ? 'selected' : '' ?>>Child</option>
-                                    <option value="Parent" <?= $m['relation'] === 'Parent' ? 'selected' : '' ?>>Parent</option>
-                                    <option value="Sibling" <?= $m['relation'] === 'Sibling' ? 'selected' : '' ?>>Sibling</option>
-                                    <option value="Tenant" <?= $m['relation'] === 'Tenant' ? 'selected' : '' ?>>Tenant</option>
-                                    <option value="Other" <?= $m['relation'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                                    <?php foreach (['Spouse', 'Child', 'Parent', 'Sibling', 'Tenant', 'Other'] as $rel): ?>
+                                        <option value="<?= $rel ?>" <?= ($m['relation'] ?? '') === $rel ? 'selected' : '' ?>><?= $rel ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Birthday</label>
-                                <input type="date" name="members[<?= $index ?>][birthday]" value="<?= $m['birthday'] ?? '' ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                                <input type="date" name="members[<?= $index ?>][birthday]" value="<?= htmlspecialchars($m['birthday'] ?? '') ?>" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                             </div>
                             <div>
                                 <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                                 <select name="members[<?= $index ?>][gender]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                                     <option value="">Select</option>
-                                    <option value="Male" <?= $m['gender'] === 'Male' ? 'selected' : '' ?>>Male</option>
-                                    <option value="Female" <?= $m['gender'] === 'Female' ? 'selected' : '' ?>>Female</option>
-                                    <option value="Other" <?= $m['gender'] === 'Other' ? 'selected' : '' ?>>Other</option>
+                                    <?php 
+                                    $currentGender = $m['gender'] ?? ''; 
+                                    foreach (['Male', 'Female', 'Other'] as $g): ?>
+                                        <option value="<?= $g ?>" <?= $currentGender === $g ? 'selected' : '' ?>><?= $g ?></option>
+                                    <?php endforeach; ?>
                                 </select>
                             </div>
                             <div>
@@ -258,7 +261,7 @@ $vehicles = $vstmt->fetchAll();
         </button>
     </div>
 
-    <!-- Vehicles – bordered card -->
+    <!-- Vehicles -->
     <div class="border-t border-gray-200 pt-8">
         <div class="vehicles-block border border-gray-200 rounded-lg p-6 bg-gray-50">
             <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles</h3>
@@ -338,7 +341,6 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
     const newBlock = document.createElement('div');
     newBlock.className = 'member-block border border-gray-200 rounded-lg p-6 bg-gray-50';
     newBlock.innerHTML = `
-        <!-- Row 1: Names -->
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
@@ -354,7 +356,6 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
             </div>
         </div>
 
-        <!-- Row 2: Other details -->
         <div class="grid grid-cols-1 md:grid-cols-5 gap-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Relation</label>
@@ -376,9 +377,11 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
                 <label class="block text-sm font-medium text-gray-700 mb-1">Gender</label>
                 <select name="members[${memberIndex}][gender]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                     <option value="">Select</option>
-                    <option value="Male">Male</option>
-                    <option value="Female">Female</option>
-                    <option value="Other">Other</option>
+                    <?php 
+                    $currentGender = ''; // default for new
+                    foreach (['Male', 'Female', 'Other'] as $g): ?>
+                        <option value="<?= $g ?>" <?= $currentGender === $g ? 'selected' : '' ?>><?= $g ?></option>
+                    <?php endforeach; ?>
                 </select>
             </div>
             <div>
@@ -391,7 +394,6 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
             </div>
         </div>
 
-        <!-- Remove button -->
         <div class="mt-4 text-right">
             <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium text-sm">
                 Remove this member
@@ -402,7 +404,7 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
     memberIndex++;
 });
 
-// Remove member block
+// Remove member
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-member')) {
         const block = e.target.closest('.member-block');
@@ -443,16 +445,6 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
     container.appendChild(newRow);
     vehicleIndex++;
 });
-
-<!-- Cancel + Update buttons at bottom -->
-<div class="mt-12 flex flex-col sm:flex-row justify-end gap-4">
-    <a href="../actions/view.php?id=<?= $id ?>" class="inline-block bg-gray-500 hover:bg-gray-600 text-white font-medium py-3 px-10 rounded-lg shadow transition text-center">
-        Cancel
-    </a>
-    <button type="submit" class="bg-green-700 hover:bg-green-800 text-white font-bold py-3 px-10 rounded-lg shadow-lg transition">
-        Update Household Record
-    </button>
-</div>
 
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-vehicle')) {

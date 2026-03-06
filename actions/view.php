@@ -28,9 +28,10 @@ $mstmt = $pdo->prepare("SELECT * FROM household_members WHERE household_id = ? O
 $mstmt->execute([$id]);
 $members = $mstmt->fetchAll();
 
+// Fetch payments (exclude soft-deleted)
 $pstmt = $pdo->prepare("
     SELECT * FROM payments 
-    WHERE household_id = ? 
+    WHERE household_id = ? AND deleted_at IS NULL 
     ORDER BY paid_at DESC
 ");
 $pstmt->execute([$id]);
@@ -173,8 +174,7 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 </div>
 
-<!-- Payment History -->
-<!-- Payment History -->
+<!-- Payment History with Delete -->
 <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden mb-10">
     <div class="p-8">
         <h3 class="text-xl font-semibold text-green-800 mb-4">Payment History</h3>
@@ -188,9 +188,10 @@ $success_msg = $_GET['msg'] ?? '';
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR No.</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Amount</th>
+                            <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Paid</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Remarks</th>
+                            <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
                     <tbody class="divide-y divide-gray-200">
@@ -201,12 +202,27 @@ $success_msg = $_GET['msg'] ?? '';
                                 $period .= sprintf(" to %d-%02d", $p['period_to_year'], $p['period_to_month']);
                             }
                             ?>
-                            <tr>
+                            <tr class="hover:bg-gray-50">
                                 <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($p['or_no'] ?: '-') ?></td>
-                                <td class="px-6 py-4"><?= htmlspecialchars($period) ?></td>
-                                <td class="px-6 py-4 font-medium text-green-700">₱<?= number_format($p['amount'], 2) ?></td>
-                                <td class="px-6 py-4"><?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($period) ?></td>
+                                <td class="px-6 py-4 whitespace-nowrap text-right font-medium text-green-700">
+                                    ₱<?= number_format($p['amount'], 2) ?>
+                                    <?php if ($p['is_promo']): ?>
+                                        <span class="text-xs text-purple-600 font-bold ml-2">Promo</span>
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap"><?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?></td>
                                 <td class="px-6 py-4"><?= htmlspecialchars($p['remarks'] ?: '-') ?></td>
+                                <td class="px-6 py-4 text-center">
+                                    <form action="../actions/delete_payment.php" method="POST" 
+                                          onsubmit="return confirm('Are you sure you want to delete this payment record? This cannot be undone.');">
+                                        <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
+                                        <input type="hidden" name="household_id" value="<?= $id ?>">
+                                        <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm">
+                                            Delete
+                                        </button>
+                                    </form>
+                                </td>
                             </tr>
                         <?php endforeach; ?>
                     </tbody>
@@ -226,7 +242,7 @@ $success_msg = $_GET['msg'] ?? '';
     <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         View Dues History
     </a>
-    <form action="../actions/delete.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
+    <form action="../actions/delete_household.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             Delete Household

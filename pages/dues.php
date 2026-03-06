@@ -122,7 +122,7 @@ foreach ($paymentsRaw as $p) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors household-row"
                             data-name="<?= strtolower($name . ' ' . $addr) ?>"
-                            '">
+                            >
                             <td class="px-6 py-4 whitespace-nowrap text-medium font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
