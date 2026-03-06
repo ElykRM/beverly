@@ -82,20 +82,49 @@ foreach ($paymentsRaw as $p) {
 
     <p class="text-gray-600 mb-6">View payment status and amounts per month for the selected year.</p>
 
-    <!-- Year selector -->
+    <!-- Filters + Search -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-10">
-        <form method="GET" class="flex flex-col sm:flex-row sm:items-center gap-6">
-            <label for="year" class="text-sm font-medium text-gray-700 whitespace-nowrap">Select Year:</label>
-            <select name="year" id="year" 
-                    class="w-full sm:w-48 px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                    onchange="this.form.submit()">
-                <?php foreach ($years as $y): ?>
-                    <option value="<?= $y ?>" <?= $y == $selectedYear ? 'selected' : '' ?>>
-                        <?= $y ?>
-                    </option>
-                <?php endforeach; ?>
-            </select>
-        </form>
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <!-- Year -->
+            <div>
+                <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Select Year</label>
+                <form method="GET" id="year-form">
+                    <select name="year" id="year" 
+                            class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            onchange="document.getElementById('year-form').submit()">
+                        <?php foreach ($years as $y): ?>
+                            <option value="<?= $y ?>" <?= $y == $selectedYear ? 'selected' : '' ?>>
+                                <?= $y ?>
+                            </option>
+                        <?php endforeach; ?>
+                    </select>
+                </form>
+            </div>
+
+            <!-- Search -->
+            <div>
+                <label for="search" class="block text-sm font-medium text-gray-700 mb-1">Search</label>
+                <input type="text" id="search" placeholder="Name, block, lot..." 
+                       class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            </div>
+
+            <!-- Status filter -->
+            <div>
+                <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-1">Status Filter</label>
+                <select id="status-filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    <option value="all">All Households</option>
+                    <option value="paid">Paid Only</option>
+                    <option value="unpaid">Unpaid / Overdue</option>
+                    <option value="overdue">Overdue Only</option>
+                </select>
+            </div>
+        </div>
+
+        <div class="mt-6">
+            <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
+                Clear Filters
+            </button>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -119,15 +148,20 @@ foreach ($paymentsRaw as $p) {
                         $hid = $h['id'];
                         $name = htmlspecialchars($h['last_name'] . ', ' . $h['first_name']);
                         $addr = $h['block'] && $h['lot'] ? "Block {$h['block']} Lot {$h['lot']}" : '—';
+                        $rowText = strtolower($name . ' ' . $addr);
                         ?>
-                        <tr class="hover:bg-gray-50 transition-colors household-row"
-                            data-name="<?= strtolower($name . ' ' . $addr) ?>"
-                            >
-                            <td class="px-6 py-4 whitespace-nowrap text-medium font-medium text-gray-900 border-r border-gray-200">
+                        <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
+                            data-search="<?= $rowText ?>"
+                            data-has-paid="false"
+                            data-has-overdue="false">
+                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
                             </td>
-                            <?php for ($m = 1; $m <= 12; $m++): 
+                            <?php 
+                            $hasPaid = false;
+                            $hasOverdue = false;
+                            for ($m = 1; $m <= 12; $m++): 
                                 $key = "$selectedYear-$m";
                                 $monthData = $monthlyData[$hid][$key] ?? null;
                                 $isPaid = $monthData !== null;
@@ -139,17 +173,20 @@ foreach ($paymentsRaw as $p) {
                                 $isOverdue = !$isPaid && $dueDate < $today;
                                 $isFuture  = $dueDate > $today;
 
+                                if ($isPaid) $hasPaid = true;
+                                if ($isOverdue) $hasOverdue = true;
+
                                 $class = 'bg-gray-100 text-gray-600 text-xs';
                                 $display = '—';
 
                                 if ($isPaid) {
-                                    $class = 'bg-green-100 text-green-800 text-medium font-medium';
-                                    $display = $isPromo ? '<span class=" text-purple-700">Promo</span>' : '₱' . number_format($amount, 2);
+                                    $class = 'bg-green-100 text-green-800 font-medium text-xs';
+                                    $display = $isPromo ? '<span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-bold">Promo</span>' : '₱' . number_format($amount, 2);
                                 } elseif ($isOverdue) {
-                                    $class = 'bg-red-100 text-red-800 text-medium font-medium';
+                                    $class = 'bg-red-100 text-red-800 font-medium text-xs';
                                     $display = 'Overdue';
                                 } elseif ($isFuture) {
-                                    $class = 'bg-gray-50 text-gray-500 text-medium font-medium';
+                                    $class = 'bg-gray-50 text-gray-500 text-xs';
                                     $display = 'Future';
                                 }
                             ?>
@@ -184,13 +221,13 @@ foreach ($paymentsRaw as $p) {
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
+                    <span class="inline-block w-5 h-5 bg-green-600 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-red-100 border border-red-300 mr-2 rounded"></span> Overdue
+                    <span class="inline-block w-5 h-5 bg-red-600 border border-red-300 mr-2 rounded"></span> Overdue
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-gray-50 border border-gray-300 mr-2 rounded"></span> Not paid / Future
+                    <span class="inline-block w-5 h-5 bg-gray-600 border border-gray-300 mr-2 rounded"></span> Not paid / Future
                 </div>
             </div>
         </div>
@@ -198,26 +235,50 @@ foreach ($paymentsRaw as $p) {
 </div>
 
 <script>
-// Pagination for dues.php
-const rows         = Array.from(document.querySelectorAll('.household-row'));
-const noResults    = document.getElementById('no-results');
-const prevBtn      = document.getElementById('prev-page');
-const nextBtn      = document.getElementById('next-page');
-const pageNumbers  = document.getElementById('page-numbers');
-const showingCount = document.getElementById('showing-count');
+// Client-side search + filter + pagination
+const searchInput   = document.getElementById('search');
+const statusFilter  = document.getElementById('status-filter');
+const clearBtn      = document.getElementById('clear-filters');
+const rows          = Array.from(document.querySelectorAll('.household-row'));
+const noResults     = document.getElementById('no-results');
+const prevBtn       = document.getElementById('prev-page');
+const nextBtn       = document.getElementById('next-page');
+const pageNumbers   = document.getElementById('page-numbers');
+const showingCount  = document.getElementById('showing-count');
 const totalFilteredEl = document.getElementById('total-filtered');
 
 let currentPage = 1;
 const perPage = 10;
 
-function updateTable() {
-    const visibleRows = rows; // no additional client filter
+function filterAndPaginate() {
+    const searchText = (searchInput.value || '').toLowerCase().trim();
+    const statusVal  = statusFilter.value;
 
+    const visibleRows = rows.filter(row => {
+        const matchesSearch = row.dataset.search.includes(searchText);
+
+        let matchesStatus = true;
+        if (statusVal !== 'all') {
+            const cells = row.querySelectorAll('td:not(:first-child)');
+            const hasPaid = Array.from(cells).some(td => td.textContent.includes('₱') || td.textContent.includes('Promo'));
+            const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
+
+            if (statusVal === 'paid')    matchesStatus = hasPaid;
+            if (statusVal === 'unpaid')  matchesStatus = !hasPaid;
+            if (statusVal === 'overdue') matchesStatus = hasOverdue;
+        }
+
+        return matchesSearch && matchesStatus;
+    });
+
+    // Update counts
     totalFilteredEl.textContent = visibleRows.length;
     showingCount.textContent = Math.min(visibleRows.length, perPage);
 
+    // Hide all rows first
     rows.forEach(r => r.style.display = 'none');
 
+    // Show current page
     const start = (currentPage - 1) * perPage;
     const end   = start + perPage;
     const pageRows = visibleRows.slice(start, end);
@@ -232,6 +293,7 @@ function updateTable() {
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= totalPages;
 
+    // Rebuild page numbers
     pageNumbers.innerHTML = '';
     for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement('button');
@@ -241,28 +303,41 @@ function updateTable() {
         }`;
         btn.onclick = () => {
             currentPage = i;
-            updateTable();
+            filterAndPaginate();
         };
         pageNumbers.appendChild(btn);
     }
 }
 
+// Event listeners
+searchInput.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
+statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
+
+clearBtn.addEventListener('click', () => {
+    searchInput.value = '';
+    statusFilter.value = 'all';
+    currentPage = 1;
+    filterAndPaginate();
+});
+
 prevBtn.addEventListener('click', () => {
     if (currentPage > 1) {
         currentPage--;
-        updateTable();
+        filterAndPaginate();
     }
 });
 
 nextBtn.addEventListener('click', () => {
-    const totalPages = Math.ceil(rows.length / perPage);
+    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+    const totalPages = Math.ceil(visibleRows.length / perPage);
     if (currentPage < totalPages) {
         currentPage++;
-        updateTable();
+        filterAndPaginate();
     }
 });
 
-updateTable();
+// Initial load
+filterAndPaginate();
 </script>
 
 <?php include '../includes/footer.php'; ?>
