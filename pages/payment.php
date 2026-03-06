@@ -94,7 +94,7 @@ $years = range($currentYear - 5, $currentYear + 10);
         </div>
 
         <!-- Range -->
-        <div id="range-group" class="hidden grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
+        <div id="range-group" class="hidden grid-cols-1 md:grid-cols-2 gap-8 mb-8">
             <div class="border-r border-gray-200 pr-6">
                 <h4 class="text-base font-medium text-gray-800 mb-4">From</h4>
                 <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">

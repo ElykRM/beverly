@@ -147,7 +147,7 @@
   }
   img, svg, video, canvas, audio, iframe, embed, object {
     display: block;
-    vertical-align: middle;
+    
   }
   img, video {
     max-width: 100%;
@@ -792,6 +792,13 @@
       }
     }
   }
+  .hover\:underline{
+    &:hover {
+      @media (hover: hover) {
+        text-decoration-line: underline;
+      }
+    }
+  }
   .hover\:bg-blue-700 {
     &:hover {
       @media (hover: hover) {
@@ -912,6 +919,7 @@
       }
     }
   }
+  
   .focus\:border-green-500 {
     &:focus {
       border-color: var(--color-green-500);

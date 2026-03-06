@@ -122,8 +122,8 @@ foreach ($paymentsRaw as $p) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors household-row"
                             data-name="<?= strtolower($name . ' ' . $addr) ?>"
-                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                            '">
+                            <td class="px-6 py-4 whitespace-nowrap text-medium font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
                             </td>
@@ -143,13 +143,13 @@ foreach ($paymentsRaw as $p) {
                                 $display = '—';
 
                                 if ($isPaid) {
-                                    $class = 'bg-green-100 text-green-800 font-medium text-xs';
-                                    $display = $isPromo ? '<span class="font-bold text-purple-700">Promo</span>' : '₱' . number_format($amount, 2);
+                                    $class = 'bg-green-100 text-green-800 text-medium font-medium';
+                                    $display = $isPromo ? '<span class=" text-purple-700">Promo</span>' : '₱' . number_format($amount, 2);
                                 } elseif ($isOverdue) {
-                                    $class = 'bg-red-100 text-red-800 font-medium';
+                                    $class = 'bg-red-100 text-red-800 text-medium font-medium';
                                     $display = 'Overdue';
                                 } elseif ($isFuture) {
-                                    $class = 'bg-gray-50 text-gray-500';
+                                    $class = 'bg-gray-50 text-gray-500 text-medium font-medium';
                                     $display = 'Future';
                                 }
                             ?>
