@@ -42,10 +42,6 @@
                         <input type="radio" name="home_status" value="Renter" class="form-radio text-green-600">
                         <span class="ml-2">Renter</span>
                     </label>
-                    <label class="inline-flex items-center">
-                        <input type="radio" name="home_status" value="Member" class="form-radio text-green-600">
-                        <span class="ml-2">Member</span>
-                    </label>
                 </div>
             </div>
         </div>

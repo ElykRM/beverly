@@ -62,7 +62,7 @@ $vehicles = $vstmt->fetchAll();
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Home Status</label>
                 <div class="flex flex-wrap gap-4 mt-2">
-                    <?php foreach (['Owner', 'Renter', 'Member'] as $status): ?>
+                    <?php foreach (['Owner', 'Renter'] as $status): ?>
                         <label class="inline-flex items-center">
                             <input type="radio" name="home_status" value="<?= $status ?>" <?= $household['home_status'] === $status ? 'checked' : '' ?> class="form-radio text-green-600">
                             <span class="ml-2"><?= $status ?></span>
