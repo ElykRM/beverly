@@ -40,7 +40,6 @@ $success_msg = $_GET['msg'] ?? '';
                     <option value="ALL">All Statuses</option>
                     <option value="Owner">Owner</option>
                     <option value="Renter">Renter</option>
-                    <option value="Member">Member</option>
                 </select>
             </div>
 

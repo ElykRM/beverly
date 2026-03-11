@@ -48,7 +48,7 @@ $total_unpaid = $total_residents - $total_paid;
             <div class="text-2xl font-bold text-red-600 mt-4">
                     <?= number_format($total_unpaid) ?>
             </div>
-            <p class="text-gray-600 ">Total Unpaid:</p>
+            <p class="text-gray-600 ">Total Overdue</p>
             <span class="text-sm text-green-600 hover:text-green-900 inline-block">View Reports →</span>
         </a>
         <a href="./payment.php" class="bg-white p-6 rounded-xl shadow border border-gray-200 hover:scale-105 transition-all block">

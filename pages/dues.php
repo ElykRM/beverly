@@ -114,7 +114,7 @@ foreach ($paymentsRaw as $p) {
                 <select id="status-filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                     <option value="all">All Households</option>
                     <option value="paid">Paid Only</option>
-                    <option value="unpaid">Unpaid / Overdue</option>
+                    <option value="unpaid">Unpaid Only</option>
                     <option value="overdue">Overdue Only</option>
                 </select>
             </div>
@@ -152,8 +152,7 @@ foreach ($paymentsRaw as $p) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
-                            data-has-paid="false"
-                            data-has-overdue="false">
+                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
@@ -161,6 +160,7 @@ foreach ($paymentsRaw as $p) {
                             <?php 
                             $hasPaid = false;
                             $hasOverdue = false;
+                            $hasUnpaidCurrent = false;
                             for ($m = 1; $m <= 12; $m++): 
                                 $key = "$selectedYear-$m";
                                 $monthData = $monthlyData[$hid][$key] ?? null;
@@ -170,11 +170,13 @@ foreach ($paymentsRaw as $p) {
 
                                 $dueDate = new DateTime("$selectedYear-$m-01");
                                 $today   = new DateTime();
-                                $isOverdue = !$isPaid && $dueDate < $today;
+                                $isOverdue = !$isPaid && $dueDate < $today && $dueDate->format('Y-m') < date('Y-m');
+                                $isCurrent = $dueDate->format('Y-m') === date('Y-m');
                                 $isFuture  = $dueDate > $today;
 
                                 if ($isPaid) $hasPaid = true;
                                 if ($isOverdue) $hasOverdue = true;
+                                if ($isCurrent && !$isPaid) $hasUnpaidCurrent = true;
 
                                 $class = 'bg-gray-100 text-gray-600 text-xs';
                                 $display = '—';
@@ -185,6 +187,9 @@ foreach ($paymentsRaw as $p) {
                                 } elseif ($isOverdue) {
                                     $class = 'bg-red-100 text-red-800 font-medium text-xs';
                                     $display = 'Overdue';
+                                } elseif ($isCurrent && !$isPaid) {
+                                    $class = 'bg-yellow-100 text-yellow-800 font-medium text-xs';
+                                    $display = 'Unpaid';
                                 } elseif ($isFuture) {
                                     $class = 'bg-gray-50 text-gray-500 text-xs';
                                     $display = 'Future';
@@ -217,17 +222,20 @@ foreach ($paymentsRaw as $p) {
             </div>
         </div>
 
-        <!-- Legend -->
+        <!-- Legend (updated to show Unpaid) -->
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-green-600 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
+                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-red-600 border border-red-300 mr-2 rounded"></span> Overdue
+                    <span class="inline-block w-5 h-5 bg-red-100 border border-red-300 mr-2 rounded"></span> Overdue (past months)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-gray-600 border border-gray-300 mr-2 rounded"></span> Not paid / Future
+                    <span class="inline-block w-5 h-5 bg-yellow-100 border border-yellow-300 mr-2 rounded"></span> Unpaid (current month)
+                </div>
+                <div class="flex items-center">
+                    <span class="inline-block w-5 h-5 bg-gray-50 border border-gray-300 mr-2 rounded"></span> Future
                 </div>
             </div>
         </div>
@@ -262,23 +270,21 @@ function filterAndPaginate() {
             const cells = row.querySelectorAll('td:not(:first-child)');
             const hasPaid = Array.from(cells).some(td => td.textContent.includes('₱') || td.textContent.includes('Promo'));
             const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
+            const hasUnpaidCurrent = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
 
             if (statusVal === 'paid')    matchesStatus = hasPaid;
-            if (statusVal === 'unpaid')  matchesStatus = !hasPaid;
+            if (statusVal === 'unpaid')  matchesStatus = hasUnpaidCurrent || (!hasPaid && !hasOverdue);
             if (statusVal === 'overdue') matchesStatus = hasOverdue;
         }
 
         return matchesSearch && matchesStatus;
     });
 
-    // Update counts
     totalFilteredEl.textContent = visibleRows.length;
     showingCount.textContent = Math.min(visibleRows.length, perPage);
 
-    // Hide all rows first
     rows.forEach(r => r.style.display = 'none');
 
-    // Show current page
     const start = (currentPage - 1) * perPage;
     const end   = start + perPage;
     const pageRows = visibleRows.slice(start, end);
@@ -293,7 +299,6 @@ function filterAndPaginate() {
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= totalPages;
 
-    // Rebuild page numbers
     pageNumbers.innerHTML = '';
     for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement('button');
@@ -328,7 +333,7 @@ prevBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
-    const visibleRows = Array.from(rows).filter(r => r.style.display !== 'none');
+    const visibleRows = rows.filter(r => r.style.display !== 'none');
     const totalPages = Math.ceil(visibleRows.length / perPage);
     if (currentPage < totalPages) {
         currentPage++;
