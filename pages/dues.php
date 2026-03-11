@@ -48,6 +48,9 @@ foreach ($paymentsRaw as $p) {
     $totalAmount = (float)$p['amount'];
     $isPromo = (int)$p['is_promo'];
 
+    // For promo: divide by 10 months (Jan–Oct), Nov–Dec = Promo tag only
+    $effectiveMonths = $isPromo ? 10 : 12;
+
     $monthCount = 0;
     for ($y = $startY; $y <= $endY; $y++) {
         $mFrom = ($y == $startY) ? $startM : 1;
@@ -55,7 +58,9 @@ foreach ($paymentsRaw as $p) {
         $monthCount += $mTo - $mFrom + 1;
     }
 
-    $perMonth = $monthCount > 0 ? $totalAmount / $monthCount : 0;
+    // Use effectiveMonths for promo division
+    $divisor = $isPromo ? min(10, $monthCount) : $monthCount;
+    $perMonth = $divisor > 0 ? $totalAmount / $divisor : 0;
 
     for ($y = $startY; $y <= $endY; $y++) {
         if ($y != $selectedYear) continue;
@@ -65,7 +70,8 @@ foreach ($paymentsRaw as $p) {
             $key = "$y-$m";
             $monthlyData[$hid][$key] = [
                 'amount'   => round($perMonth, 2),
-                'is_promo' => $isPromo
+                'is_promo' => $isPromo,
+                'month_num' => $m
             ];
         }
     }
@@ -113,13 +119,12 @@ foreach ($paymentsRaw as $p) {
                 <label for="status-filter" class="block text-sm font-medium text-gray-700 mb-1">Status Filter</label>
                 <select id="status-filter" class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                     <option value="all">All Households</option>
-                    <option value="paid">Paid Only</option>
-                    <option value="unpaid">Unpaid Only</option>
-                    <option value="overdue">Overdue Only</option>
+                    <option value="paid">Paid Only (incl. Promo)</option>
+                    <option value="unpaid">Unpaid / Current Due</option>
+                    <option value="overdue">Overdue (Past Months)</option>
                 </select>
             </div>
         </div>
-
             <div class="mt-6 flex gap-4 justify-end">
                 <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
                     Clear Filters
@@ -152,7 +157,7 @@ foreach ($paymentsRaw as $p) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
-                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
+                            >
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
@@ -167,6 +172,7 @@ foreach ($paymentsRaw as $p) {
                                 $isPaid = $monthData !== null;
                                 $amount = $monthData['amount'] ?? 0;
                                 $isPromo = $monthData['is_promo'] ?? 0;
+                                $monthNum = $monthData['month_num'] ?? $m;
 
                                 $dueDate = new DateTime("$selectedYear-$m-01");
                                 $today   = new DateTime();
@@ -183,7 +189,17 @@ foreach ($paymentsRaw as $p) {
 
                                 if ($isPaid) {
                                     $class = 'bg-green-100 text-green-800 font-medium text-xs';
-                                    $display = $isPromo ? '<span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-bold">Promo</span>' : '₱' . number_format($amount, 2);
+                                    if ($isPromo) {
+                                        if ($monthNum <= 10) {
+                                            // Jan–Oct: show ₱100 (or calculated)
+                                            $display = '₱' . number_format($amount, 2);
+                                        } else {
+                                            // Nov–Dec: Promo badge
+                                            $display = '<span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-bold">Promo</span>';
+                                        }
+                                    } else {
+                                        $display = '₱' . number_format($amount, 2);
+                                    }
                                 } elseif ($isOverdue) {
                                     $class = 'bg-red-100 text-red-800 font-medium text-xs';
                                     $display = 'Overdue';
@@ -222,7 +238,7 @@ foreach ($paymentsRaw as $p) {
             </div>
         </div>
 
-        <!-- Legend (updated to show Unpaid) -->
+        <!-- Legend -->
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
@@ -268,12 +284,14 @@ function filterAndPaginate() {
         let matchesStatus = true;
         if (statusVal !== 'all') {
             const cells = row.querySelectorAll('td:not(:first-child)');
-            const hasPaid = Array.from(cells).some(td => td.textContent.includes('₱') || td.textContent.includes('Promo'));
+            const hasPaid = Array.from(cells).some(td => 
+                td.innerHTML.includes('₱') || td.innerHTML.includes('Promo')
+            );
             const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
-            const hasUnpaidCurrent = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
+            const hasUnpaid = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
 
             if (statusVal === 'paid')    matchesStatus = hasPaid;
-            if (statusVal === 'unpaid')  matchesStatus = hasUnpaidCurrent || (!hasPaid && !hasOverdue);
+            if (statusVal === 'unpaid')  matchesStatus = hasUnpaid || (!hasPaid && !hasOverdue);
             if (statusVal === 'overdue') matchesStatus = hasOverdue;
         }
 
