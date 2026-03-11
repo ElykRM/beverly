@@ -120,11 +120,11 @@ foreach ($paymentsRaw as $p) {
             </div>
         </div>
 
-        <div class="mt-6">
-            <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
-                Clear Filters
-            </button>
-        </div>
+            <div class="mt-6 flex gap-4 justify-end">
+                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
+                    Clear Filters
+                </button>
+            </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -226,13 +226,13 @@ foreach ($paymentsRaw as $p) {
         <div class="p-6 bg-gray-50 border-t border-gray-200">
             <div class="flex flex-wrap gap-8 text-sm">
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-green-100 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
+                    <span class="inline-block w-5 h-5 bg-green-600 border border-green-300 mr-2 rounded"></span> Paid (amount or Promo)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-red-100 border border-red-300 mr-2 rounded"></span> Overdue (past months)
+                    <span class="inline-block w-5 h-5 bg-red-600 border border-red-300 mr-2 rounded"></span> Overdue (past months)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-yellow-100 border border-yellow-300 mr-2 rounded"></span> Unpaid (current month)
+                    <span class="inline-block w-5 h-5 bg-yellow-600 border border-yellow-300 mr-2 rounded"></span> Unpaid (current month)
                 </div>
                 <div class="flex items-center">
                     <span class="inline-block w-5 h-5 bg-gray-50 border border-gray-300 mr-2 rounded"></span> Future

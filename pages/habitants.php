@@ -49,7 +49,7 @@ $success_msg = $_GET['msg'] ?? '';
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
 
-            <div class="flex items-end gap-4">
+            <div class="mt-6 flex gap-4 justify-end">
                 <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
                     Clear Filters
                 </button>

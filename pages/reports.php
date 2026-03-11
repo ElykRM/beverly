@@ -192,11 +192,11 @@ foreach ($households as $h) {
             </div>
         </div>
 
-        <div class="mt-6 flex gap-4 justify-end">
-            <button id="clear-filters" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-6 rounded-lg shadow transition">
-                Clear Filters
-            </button>
-        </div>
+            <div class="mt-6 flex gap-4 justify-end">
+                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
+                    Clear Filters
+                </button>
+            </div>
     </div>
 
     <!-- Results Table -->
