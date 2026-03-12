@@ -242,7 +242,7 @@ $success_msg = $_GET['msg'] ?? '';
     <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         View Dues History
     </a>
-    <form action="../actions/delete_household.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
+    <form action="../actions/delete.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             Delete Household

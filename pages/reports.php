@@ -233,7 +233,7 @@ foreach ($households as $h) {
                         data-dues-status="<?= $h['dues_status'] ?>"
                         data-block="<?= htmlspecialchars($h['block'] ?? '') ?>"
                         data-lot="<?= htmlspecialchars($h['lot'] ?? '') ?>"
-                        onclick="window.location.href='view.php?id=<?= $h['id'] ?>'">
+                        onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <?= htmlspecialchars($h['block'] ?: '-') ?>
                         </td>
@@ -283,18 +283,86 @@ foreach ($households as $h) {
         </div>
     </div>
 
-    <!-- Export -->
+    <!-- Export to Excel -->
     <?php if (!empty($results_with_status)): ?>
         <div class="mt-6 text-right">
-            <button onclick="exportCSV()" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-                Export Filtered List to CSV
+            <button onclick="exportExcel()" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+                Export Filtered List to Excel (.xlsx)
             </button>
         </div>
     <?php endif; ?>
 </div>
 
 <script>
-// Client-side filtering + pagination
+// Client-side trigger to export filtered data to Excel via server
+function exportExcel() {
+    // Get current visible/filtered rows
+    const visibleRows = rows.filter(row => {
+        const statusVal = document.getElementById('status').value;
+        const blockVal  = document.getElementById('block').value.trim().toLowerCase();
+        const lotVal    = document.getElementById('lot').value.trim().toLowerCase();
+        const nameVal   = document.getElementById('name').value.trim().toLowerCase();
+        const duesVal   = document.getElementById('dues_status').value;
+
+        const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
+        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
+        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
+        const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
+        const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
+
+        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
+    });
+
+    if (visibleRows.length === 0) {
+        alert('No data to export. Try adjusting filters.');
+        return;
+    }
+
+    // Collect data from visible rows
+    const exportData = [];
+    visibleRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        exportData.push({
+            block:      cells[0].textContent.trim(),
+            lot:        cells[1].textContent.trim(),
+            last_name:  cells[2].textContent.trim(),
+            first_name: cells[3].textContent.trim(),
+            middle_name: cells[4].textContent.trim(),
+            street:     cells[5].textContent.trim(),
+            status:     cells[6].textContent.trim(),
+            dues_status: cells[7].textContent.trim()
+        });
+    });
+
+    // Send filtered data to server
+    fetch('../actions/export_excel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: exportData })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `hoa_report_${new Date().toISOString().slice(0,10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+        console.error('Export failed:', err);
+        alert('Export failed. Check console (F12) for details.');
+    });
+}
+</script>
+
+<script>
+// Client-side filtering + pagination (unchanged)
 const rows = Array.from(document.querySelectorAll('.household-row'));
 const noResults = document.getElementById('no-results');
 const prevBtn = document.getElementById('prev-page');
@@ -399,47 +467,6 @@ nextBtn.addEventListener('click', () => {
 
 // Initial load
 filterAndPaginate();
-</script>
-
-<script>
-// Export CSV (updated headers to match new column order)
-function exportCSV() {
-    try {
-        const rawData = <?= json_encode($results_with_status, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?> || [];
-
-        if (!Array.isArray(rawData) || rawData.length === 0) {
-            alert('No data to export. Try adjusting filters.');
-            return;
-        }
-
-        let csv = 'Block,Lot,Last Name,First Name,Middle Name,Street,Status,Dues Status\n';
-        rawData.forEach(row => {
-            const block  = `"${(row.block || '').replace(/"/g, '""')}"`;
-            const lot    = `"${(row.lot || '').replace(/"/g, '""')}"`;
-            const last   = `"${(row.last_name || '').replace(/"/g, '""')}"`;
-            const first  = `"${(row.first_name || '').replace(/"/g, '""')}"`;
-            const middle = `"${(row.middle_name || '').replace(/"/g, '""')}"`;
-            const street = `"${(row.street || '').replace(/"/g, '""')}"`;
-            const status = `"${(row.home_status || '').replace(/"/g, '""')}"`;
-            const dues   = `"${(row.dues_status || '').replace(/"/g, '""')}"`;
-
-            csv += `${block},${lot},${last},${first},${middle},${street},${status},${dues}\n`;
-        });
-
-        const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-        const url = URL.createObjectURL(blob);
-        const link = document.createElement('a');
-        link.href = url;
-        link.download = `hoa_report_${new Date().toISOString().slice(0,10)}.csv`;
-        document.body.appendChild(link);
-        link.click();
-        document.body.removeChild(link);
-        URL.revokeObjectURL(url);
-    } catch (err) {
-        console.error('CSV Export failed:', err);
-        alert('Export failed. Check browser console (F12) for details.');
-    }
-}
 </script>
 
 <?php include '../includes/footer.php'; ?>
