@@ -251,7 +251,7 @@ foreach ($paymentsRaw as $p) {
                     <span class="inline-block w-5 h-5 bg-yellow-600 border border-yellow-300 mr-2 rounded"></span> Unpaid (current month)
                 </div>
                 <div class="flex items-center">
-                    <span class="inline-block w-5 h-5 bg-gray-50 border border-gray-300 mr-2 rounded"></span> Future
+                    <span class="inline-block w-5 h-5 bg-gray-600 border border-gray-300 mr-2 rounded"></span> Future
                 </div>
             </div>
         </div>
