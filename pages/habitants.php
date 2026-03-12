@@ -10,7 +10,7 @@ $stmt = $pdo->query("
     SELECT id, last_name, first_name, middle_name, home_status, 
            block, lot, street
     FROM households 
-    ORDER BY last_name ASC, first_name ASC
+    ORDER BY block ASC, lot ASC, last_name ASC, first_name ASC
 ");
 $allHouseholds = $stmt->fetchAll();
 
@@ -44,7 +44,7 @@ $success_msg = $_GET['msg'] ?? '';
             </div>
 
             <div>
-                <label for="name-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Name / Address</label>
+                <label for="name-filter" class="block text-sm font-medium text-gray-700 mb-1">Search Name</label>
                 <input type="text" id="name-filter" placeholder="e.g. John Doe" 
                        class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
@@ -67,24 +67,33 @@ $success_msg = $_GET['msg'] ?? '';
                 <table id="households-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Block</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lot</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Last Name</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">First Name</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Middle Name</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Block</th>
-                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Lot</th>
                             <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Street</th>
+                            <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">Status</th>
                         </tr>
                     </thead>
                     <tbody class="bg-white divide-y divide-gray-200" id="table-body">
                         <?php foreach ($allHouseholds as $h): ?>
                             <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
+                                data-block="<?= htmlspecialchars(strtolower($h['block'] ?? '')) ?>"
+                                data-lot="<?= htmlspecialchars(strtolower($h['lot'] ?? '')) ?>"
                                 data-lastname="<?= htmlspecialchars(strtolower($h['last_name'] ?? '')) ?>"
                                 data-firstname="<?= htmlspecialchars(strtolower($h['first_name'] ?? '')) ?>"
                                 data-middlename="<?= htmlspecialchars(strtolower($h['middle_name'] ?? '')) ?>"
+                                data-street="<?= htmlspecialchars(strtolower($h['street'] ?? '')) ?>"
                                 data-status="<?= htmlspecialchars($h['home_status']) ?>"
                                 onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
-                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <?= htmlspecialchars($h['block'] ?: '-') ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <?= htmlspecialchars($h['lot'] ?: '-') ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm font-medium  text-gray-900">
                                     <?= htmlspecialchars($h['last_name']) ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
@@ -94,16 +103,10 @@ $success_msg = $_GET['msg'] ?? '';
                                     <?= htmlspecialchars($h['middle_name'] ?: '-') ?>
                                 </td>
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= htmlspecialchars($h['home_status']) ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= htmlspecialchars($h['block'] ?: '-') ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                                    <?= htmlspecialchars($h['lot'] ?: '-') ?>
-                                </td>
-                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <?= htmlspecialchars($h['street'] ?: '-') ?>
+                                </td>
+                                <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                                    <?= htmlspecialchars($h['home_status']) ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -129,14 +132,14 @@ $success_msg = $_GET['msg'] ?? '';
             </div>
         <?php endif; ?>
     </div>
-</div>
 
-        <!-- New Household button at bottom -->
-        <div class="text-center sm:text-right mt-6">
-            <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-                + New Household
-            </a>
-        </div>
+    <!-- New Household button at bottom -->
+    <div class="text-center sm:text-right mt-6">
+        <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+            + New Household
+        </a>
+    </div>
+</div>
 
 <script>
 // Client-side filtering + pagination
@@ -160,19 +163,14 @@ function getVisibleRows() {
 
     return rows.filter(row => {
         const rowStatus = (row.dataset.status || '').toUpperCase().trim();
-        const fullName  = [
+        const searchText = [
+            row.dataset.block      || '',
+            row.dataset.lot        || '',
             row.dataset.lastname   || '',
             row.dataset.firstname  || '',
-            row.dataset.middlename || ''
+            row.dataset.middlename || '',
+            row.dataset.street     || ''
         ].join(' ').toLowerCase().trim();
-
-        const address = [
-            row.querySelector('td:nth-child(5)')?.textContent?.toLowerCase() || '',
-            row.querySelector('td:nth-child(6)')?.textContent?.toLowerCase() || '',
-            row.querySelector('td:nth-child(7)')?.textContent?.toLowerCase() || ''
-        ].join(' ');
-
-        const searchText = fullName + ' ' + address;
 
         const matchStatus = (statusValue === 'ALL' || rowStatus === statusValue);
         const matchName   = searchText.includes(nameValue);
@@ -184,31 +182,25 @@ function getVisibleRows() {
 function updateTable() {
     const visibleRows = getVisibleRows();
 
-    // Update counts
     totalFilteredEl.textContent = visibleRows.length;
     showingCount.textContent = Math.min(visibleRows.length, perPage);
 
-    // Hide all rows
     rows.forEach(r => r.style.display = 'none');
 
-    // Show current page
     const start = (currentPage - 1) * perPage;
     const end   = start + perPage;
     const pageRows = visibleRows.slice(start, end);
 
     pageRows.forEach(row => row.style.display = '');
 
-    // No results message
     noResults.style.display = visibleRows.length === 0 ? '' : 'none';
 
-    // Pagination logic
     const totalPages = Math.ceil(visibleRows.length / perPage) || 1;
-    currentPage = Math.min(currentPage, totalPages); // clamp
+    currentPage = Math.min(currentPage, totalPages);
 
     prevBtn.disabled = currentPage <= 1;
     nextBtn.disabled = currentPage >= totalPages || totalPages === 0;
 
-    // Page numbers
     pageNumbers.innerHTML = '';
     for (let i = 1; i <= totalPages; i++) {
         const btn = document.createElement('button');

@@ -59,7 +59,7 @@ $total_overdue = $overdue_full_stmt->fetch()['count'];
 $householdsStmt = $pdo->query("
     SELECT id, last_name, first_name, middle_name, home_status, block, lot, street 
     FROM households 
-    ORDER BY last_name, first_name
+    ORDER BY block ASC, lot ASC, last_name ASC, first_name ASC
 ");
 $households = $householdsStmt->fetchAll();
 
@@ -192,11 +192,11 @@ foreach ($households as $h) {
             </div>
         </div>
 
-            <div class="mt-6 flex gap-4 justify-end">
-                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
-                    Clear Filters
-                </button>
-            </div>
+        <div class="mt-6 flex gap-4 justify-end">
+            <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
+                Clear Filters
+            </button>
+        </div>
     </div>
 
     <!-- Results Table -->
@@ -204,11 +204,13 @@ foreach ($households as $h) {
         <table id="reports-table" class="min-w-full divide-y divide-gray-200">
             <thead class="bg-gray-50">
                 <tr>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
-                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Block</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Lot</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Last Name</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">First Name</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Middle Name</th>
                     <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Street</th>
+                    <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
                     <th class="px-6 py-4 text-center text-xs font-medium text-gray-500 uppercase">Dues Status</th>
                 </tr>
             </thead>
@@ -216,7 +218,14 @@ foreach ($households as $h) {
                 <?php foreach ($results_with_status as $h): ?>
                     <?php
                     $fullName = $h['first_name'] . ' ' . $h['last_name'];
-                    $searchText = strtolower($fullName . ' ' . ($h['block'] ?? '') . ' ' . ($h['lot'] ?? '') . ' ' . ($h['street'] ?? ''));
+                    $searchText = strtolower(
+                        ($h['block'] ?? '') . ' ' .
+                        ($h['lot'] ?? '') . ' ' .
+                        $h['last_name'] . ' ' .
+                        $h['first_name'] . ' ' .
+                        ($h['middle_name'] ?? '') . ' ' .
+                        ($h['street'] ?? '')
+                    );
                     ?>
                     <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                         data-search="<?= $searchText ?>"
@@ -224,14 +233,28 @@ foreach ($households as $h) {
                         data-dues-status="<?= $h['dues_status'] ?>"
                         data-block="<?= htmlspecialchars($h['block'] ?? '') ?>"
                         data-lot="<?= htmlspecialchars($h['lot'] ?? '') ?>"
-                        onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
-                        <td class="px-6 py-4 whitespace-nowrap font-medium text-gray-900">
-                            <?= htmlspecialchars($fullName) ?>
+                        onclick="window.location.href='view.php?id=<?= $h['id'] ?>'">
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['block'] ?: '-') ?>
                         </td>
-                        <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($h['home_status']) ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($h['block'] ?? '-') ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($h['lot'] ?? '-') ?></td>
-                        <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($h['street'] ?? '-') ?></td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['lot'] ?: '-') ?>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['last_name']) ?>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['first_name']) ?>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['middle_name'] ?: '-') ?>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['street'] ?: '-') ?>
+                        </td>
+                        <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
+                            <?= htmlspecialchars($h['home_status']) ?>
+                        </td>
                         <td class="px-6 py-4 text-center">
                             <span class="inline-flex items-center justify-center px-3 py-1 rounded-full text-sm font-medium min-w-[90px] <?= $h['status_class'] ?>">
                                 <?= $h['dues_status'] ?>
@@ -240,7 +263,7 @@ foreach ($households as $h) {
                     </tr>
                 <?php endforeach; ?>
                 <tr id="no-results" style="display: none;">
-                    <td colspan="6" class="px-6 py-12 text-center text-gray-500 italic">
+                    <td colspan="8" class="px-6 py-12 text-center text-gray-500 italic">
                         No households match the current filters.
                     </td>
                 </tr>
@@ -379,7 +402,7 @@ filterAndPaginate();
 </script>
 
 <script>
-// Export CSV
+// Export CSV (updated headers to match new column order)
 function exportCSV() {
     try {
         const rawData = <?= json_encode($results_with_status, JSON_HEX_TAG | JSON_HEX_APOS | JSON_HEX_QUOT | JSON_HEX_AMP | JSON_UNESCAPED_UNICODE) ?> || [];
@@ -389,16 +412,18 @@ function exportCSV() {
             return;
         }
 
-        let csv = 'Name,Status,Block,Lot,Street,Dues Status\n';
+        let csv = 'Block,Lot,Last Name,First Name,Middle Name,Street,Status,Dues Status\n';
         rawData.forEach(row => {
-            const name   = `"${(row.first_name + ' ' + row.last_name).replace(/"/g, '""')}"`;
-            const status = `"${(row.home_status || '').replace(/"/g, '""')}"`;
             const block  = `"${(row.block || '').replace(/"/g, '""')}"`;
             const lot    = `"${(row.lot || '').replace(/"/g, '""')}"`;
+            const last   = `"${(row.last_name || '').replace(/"/g, '""')}"`;
+            const first  = `"${(row.first_name || '').replace(/"/g, '""')}"`;
+            const middle = `"${(row.middle_name || '').replace(/"/g, '""')}"`;
             const street = `"${(row.street || '').replace(/"/g, '""')}"`;
+            const status = `"${(row.home_status || '').replace(/"/g, '""')}"`;
             const dues   = `"${(row.dues_status || '').replace(/"/g, '""')}"`;
 
-            csv += `${name},${status},${block},${lot},${street},${dues}\n`;
+            csv += `${block},${lot},${last},${first},${middle},${street},${status},${dues}\n`;
         });
 
         const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
