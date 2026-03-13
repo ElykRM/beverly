@@ -37,8 +37,11 @@ if (!empty($households)) {
     $paymentsRaw = $pstmt->fetchAll();
 }
 
-// Build monthly data
+// Build monthly data + totals
 $monthlyData = [];
+$monthlyTotals = array_fill(1, 12, 0.00); // total paid per month
+$totalUnpaidAll = 0.00; // grand total unpaid for year
+
 foreach ($paymentsRaw as $p) {
     $hid = $p['household_id'];
     $startY = (int)$p['period_year'];
@@ -58,7 +61,6 @@ foreach ($paymentsRaw as $p) {
         $monthCount += $mTo - $mFrom + 1;
     }
 
-    // Use effectiveMonths for promo division
     $divisor = $isPromo ? min(10, $monthCount) : $monthCount;
     $perMonth = $divisor > 0 ? $totalAmount / $divisor : 0;
 
@@ -73,8 +75,28 @@ foreach ($paymentsRaw as $p) {
                 'is_promo' => $isPromo,
                 'month_num' => $m
             ];
+
+            // Add to monthly total (only if not promo Nov-Dec)
+            if (!$isPromo || $m <= 10) {
+                $monthlyTotals[$m] += round($perMonth, 2);
+            }
         }
     }
+}
+
+// Calculate total unpaid per household and grand total unpaid
+$householdUnpaid = [];
+foreach ($households as $h) {
+    $hid = $h['id'];
+    $unpaid = 0.00;
+    for ($m = 1; $m <= 12; $m++) {
+        $key = "$selectedYear-$m";
+        if (!isset($monthlyData[$hid][$key])) {
+            $unpaid += 100.00; // ← CHANGE THIS if your monthly due is not ₱100
+        }
+    }
+    $householdUnpaid[$hid] = $unpaid;
+    $totalUnpaidAll += $unpaid;
 }
 ?>
 
@@ -125,11 +147,12 @@ foreach ($paymentsRaw as $p) {
                 </select>
             </div>
         </div>
-            <div class="mt-6 flex gap-4 justify-end">
-                <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
-                    Clear Filters
-                </button>
-            </div>
+
+        <div class="mt-6 flex gap-4 justify-end">
+            <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
+                Clear Filters
+            </button>
+        </div>
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -139,6 +162,9 @@ foreach ($paymentsRaw as $p) {
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[220px]">
                             Household
+                        </th>
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[100px]">
+                            Total Unpaid
                         </th>
                         <?php foreach ($months as $num => $short): ?>
                             <th class="px-3 py-4 text-center text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -154,13 +180,17 @@ foreach ($paymentsRaw as $p) {
                         $name = htmlspecialchars($h['last_name'] . ', ' . $h['first_name']);
                         $addr = $h['block'] && $h['lot'] ? "Block {$h['block']} Lot {$h['lot']}" : '—';
                         $rowText = strtolower($name . ' ' . $addr);
+                        $unpaidTotal = $householdUnpaid[$hid] ?? 0.00;
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
-                            >
+                            onclick="window.location.href='view.php?id=<?= $hid ?>'">
                             <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
+                            </td>
+                            <td class="px-6 py-4 text-center text-sm font-bold text-red-600 border-r border-gray-200">
+                                ₱<?= number_format($unpaidTotal, 2) ?>
                             </td>
                             <?php 
                             $hasPaid = false;
@@ -191,10 +221,8 @@ foreach ($paymentsRaw as $p) {
                                     $class = 'bg-green-100 text-green-800 font-medium text-xs';
                                     if ($isPromo) {
                                         if ($monthNum <= 10) {
-                                            // Jan–Oct: show ₱100 (or calculated)
                                             $display = '₱' . number_format($amount, 2);
                                         } else {
-                                            // Nov–Dec: Promo badge
                                             $display = '<span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-bold">Promo</span>';
                                         }
                                     } else {
@@ -217,8 +245,24 @@ foreach ($paymentsRaw as $p) {
                             <?php endfor; ?>
                         </tr>
                     <?php endforeach; ?>
+
+                    <!-- Total Paid Row -->
+                    <tr class="bg-gray-100 font-bold">
+                        <td class="px-6 py-4 text-right text-sm text-gray-900 border-r border-gray-200">
+                            TOTAL PAID
+                        </td>
+                        <td class="px-6 py-4 text-center text-sm text-red-600 border-r border-gray-200">
+                            ₱<?= number_format($totalUnpaidAll, 2) ?> (Unpaid)
+                        </td>
+                        <?php for ($m = 1; $m <= 12; $m++): ?>
+                            <td class="px-3 py-4 text-center text-sm text-green-800">
+                                ₱<?= number_format($monthlyTotals[$m], 2) ?>
+                            </td>
+                        <?php endfor; ?>
+                    </tr>
+
                     <tr id="no-results" style="display: none;">
-                        <td colspan="<?= count($months) + 1 ?>" class="px-6 py-12 text-center text-gray-500 italic">
+                        <td colspan="<?= count($months) + 2 ?>" class="px-6 py-12 text-center text-gray-500 italic">
                             No households match the current filters.
                         </td>
                     </tr>
@@ -256,10 +300,19 @@ foreach ($paymentsRaw as $p) {
             </div>
         </div>
     </div>
+
+    <!-- Export to Excel -->
+    <?php if (!empty($households)): ?>
+        <div class="mt-6 text-right">
+            <button onclick="exportExcel()" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+                Export Filtered List to Excel (.xlsx)
+            </button>
+        </div>
+    <?php endif; ?>
 </div>
 
 <script>
-// Client-side search + filter + pagination
+// Client-side search + filter + pagination (unchanged)
 const searchInput   = document.getElementById('search');
 const statusFilter  = document.getElementById('status-filter');
 const clearBtn      = document.getElementById('clear-filters');
@@ -283,7 +336,7 @@ function filterAndPaginate() {
 
         let matchesStatus = true;
         if (statusVal !== 'all') {
-            const cells = row.querySelectorAll('td:not(:first-child)');
+            const cells = row.querySelectorAll('td:not(:first-child):not(:nth-child(2))');
             const hasPaid = Array.from(cells).some(td => 
                 td.innerHTML.includes('₱') || td.innerHTML.includes('Promo')
             );
@@ -332,7 +385,93 @@ function filterAndPaginate() {
     }
 }
 
-// Event listeners
+// Export to Excel (now includes numeric values + total row)
+function exportExcel() {
+    const visibleRows = rows.filter(row => row.style.display !== 'none' && row.id !== 'no-results');
+
+    if (visibleRows.length === 0) {
+        alert('No data to export. Try adjusting filters.');
+        return;
+    }
+
+    const exportData = [];
+    visibleRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Extract block and lot from address
+        const addr = cells[0].querySelector('div:last-child').textContent.trim();
+        let block = '', lot = '';
+        if (addr !== '—') {
+            const parts = addr.split(' ');
+            if (parts.length >= 4) {
+                block = parts[1];
+                lot = parts[3];
+            }
+        }
+        // Extract clean numeric values where possible
+        const rowData = {
+            block: block,
+            lot: lot,
+            household_name: cells[0].querySelector('div:first-child').textContent.trim(),
+            total_unpaid: parseFloat(cells[1].textContent.trim().replace(/[₱, ]/g, '')) || 0,
+        };
+
+        for (let i = 2; i < cells.length; i++) {
+            const cellText = cells[i].textContent.trim();
+            const monthKey = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][i-2];
+            if (cellText.includes('Promo') || cellText === '—' || cellText === 'Overdue' || cellText === 'Unpaid' || cellText === 'Future') {
+                rowData[monthKey] = cellText; // keep as text
+            } else {
+                rowData[monthKey] = parseFloat(cellText.replace(/[₱, ]/g, '')) || 0; // numeric
+            }
+        }
+        exportData.push(rowData);
+    });
+
+    // Add total row (last visible row with bg-gray-100)
+    const totalRow = document.querySelector('tr.bg-gray-100');
+    if (totalRow) {
+        const totalCells = totalRow.querySelectorAll('td');
+        const totalData = {
+            block: '',
+            lot: '',
+            household_name: totalCells[0].textContent.trim(),
+            total_unpaid: parseFloat(totalCells[1].textContent.trim().replace(/[₱, (Unpaid)]/g, '')) || 0,
+        };
+
+        for (let i = 2; i < totalCells.length; i++) {
+            const cellText = totalCells[i].textContent.trim();
+            const monthKey = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][i-2];
+            totalData[monthKey] = parseFloat(cellText.replace(/[₱, ]/g, '')) || 0;
+        }
+        exportData.push(totalData);
+    }
+
+    fetch('../actions/export_dues_excel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ data: exportData })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Network response was not ok');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `dues_overview_${new Date().toISOString().slice(0,10)}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+        console.error('Export failed:', err);
+        alert('Export failed. Check console (F12) for details.');
+    });
+}
+
+// Event listeners (unchanged)
 searchInput.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
 statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
 
