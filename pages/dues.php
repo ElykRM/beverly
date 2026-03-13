@@ -427,24 +427,32 @@ function exportExcel() {
         exportData.push(rowData);
     });
 
-    // Add total row (last visible row with bg-gray-100)
-    const totalRow = document.querySelector('tr.bg-gray-100');
-    if (totalRow) {
-        const totalCells = totalRow.querySelectorAll('td');
-        const totalData = {
-            block: '',
-            lot: '',
-            household_name: totalCells[0].textContent.trim(),
-            total_unpaid: parseFloat(totalCells[1].textContent.trim().replace(/[₱, (Unpaid)]/g, '')) || 0,
-        };
+    // Compute totals from the filtered exportData so the spreadsheet reflects
+    // whatever rows are currently visible (honoring search/status filters/pagination).
+    const monthKeys = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const totals = {
+        block: '',
+        lot: '',
+        household_name: 'TOTAL',
+        total_unpaid: 0,
+    };
+    monthKeys.forEach(k => totals[k] = 0);
 
-        for (let i = 2; i < totalCells.length; i++) {
-            const cellText = totalCells[i].textContent.trim();
-            const monthKey = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][i-2];
-            totalData[monthKey] = parseFloat(cellText.replace(/[₱, ]/g, '')) || 0;
-        }
-        exportData.push(totalData);
-    }
+    exportData.forEach(r => {
+        totals.total_unpaid += parseFloat(r.total_unpaid) || 0;
+        monthKeys.forEach(k => {
+            const v = parseFloat(r[k]);
+            if (!isNaN(v)) totals[k] += v;
+        });
+    });
+
+    // round totals to two decimals
+    totals.total_unpaid = Math.round(totals.total_unpaid * 100) / 100;
+    monthKeys.forEach(k => {
+        totals[k] = Math.round(totals[k] * 100) / 100;
+    });
+
+    exportData.push(totals);
 
     fetch('../actions/export_dues_excel.php', {
         method: 'POST',

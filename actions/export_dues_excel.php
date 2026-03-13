@@ -23,6 +23,18 @@ if (empty($data)) {
     exit;
 }
 
+// If the last row appears to be a summary row (sent by JS), remove it;
+// we'll calculate spreadsheet formulas ourselves. The JS row is expected to
+// have household_name === 'TOTAL' or an empty block/lot. This prevents
+// duplicate totals and ensures the exported file always recalculates correctly.
+$lastIndex = count($data) - 1;
+if ($lastIndex >= 0) {
+    $last = $data[$lastIndex];
+    if (isset($last['household_name']) && strtoupper($last['household_name']) === 'TOTAL') {
+        array_pop($data);
+    }
+}
+
 // Create spreadsheet
 $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
@@ -41,7 +53,7 @@ $sheet->getStyle('A1:P1')->applyFromArray($headerStyle);
 
 // Add data rows
 $rowNum = 2;
-foreach ($data as $index => $row) {
+foreach ($data as $row) {
     // Set block
     $sheet->setCellValue('A' . $rowNum, $row['block']);
     // Set lot
@@ -70,16 +82,31 @@ foreach ($data as $index => $row) {
     // Apply currency format to numeric columns (D to P)
     $sheet->getStyle("D$rowNum:P$rowNum")->getNumberFormat()->setFormatCode('_(* #,##0.00_);_(* (#,##0.00);_(* "-"_);_(@_)');
 
-    // If this is the total row, make it bold + light gray background
-    if ($index === count($data) - 1) {
-        $sheet->getStyle("A$rowNum:P$rowNum")->applyFromArray([
-            'font' => ['bold' => true],
-            'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE0E0E0']],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
-        ]);
+    $rowNum++;
+}
+
+// after writing actual data rows, write formula row for totals
+$lastDataRow = $rowNum - 1;
+if ($lastDataRow >= 2) {
+    // totals label
+    $sheet->setCellValue('C' . $rowNum, 'TOTAL');
+
+    // total unpaid formula
+    $sheet->setCellValue('D' . $rowNum, "=SUM(D2:D{$lastDataRow})");
+
+    // monthly formulas E..P
+    foreach (range('E', 'P') as $col) {
+        $sheet->setCellValue($col . $rowNum, "=SUM({$col}2:{$col}{$lastDataRow})");
     }
 
-    $rowNum++;
+    // style the totals row bold + gray
+    $sheet->getStyle("A{$rowNum}:P{$rowNum}")->applyFromArray([
+        'font' => ['bold' => true],
+        'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE0E0E0']],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+    ]);
+    // apply same currency format to totals row
+    $sheet->getStyle("D{$rowNum}:P{$rowNum}")->getNumberFormat()->setFormatCode('_(* #,##0.00_);_(* (#,##0.00);_(* "-"_);_(@_)');
 }
 
 // Auto-size columns
