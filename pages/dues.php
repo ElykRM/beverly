@@ -156,14 +156,14 @@ foreach ($households as $h) {
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
-        <div class="overflow-x-auto">
-            <table id="dues-table" class="min-w-full divide-y divide-gray-200">
+        <div class="overflow-x-auto lg:overflow-x-visible">
+            <table id="dues-table" class="table-fixed w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[220px]">
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                             Household
                         </th>
-                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200 min-w-[100px]">
+                        <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
                             Total Unpaid
                         </th>
                         <?php foreach ($months as $num => $short): ?>
@@ -185,11 +185,11 @@ foreach ($households as $h) {
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
                             onclick="window.location.href='view.php?id=<?= $hid ?>'">
-                            <td class="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900 border-r border-gray-200">
+                            <td class="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
                             </td>
-                            <td class="px-6 py-4 text-center text-sm font-bold text-red-600 border-r border-gray-200">
+                            <td class="px-6 py-4 text-center text-sm font-bold text-red-600 border-r border-gray-200 whitespace-normal">
                                 ₱<?= number_format($unpaidTotal, 2) ?>
                             </td>
                             <?php 
@@ -239,7 +239,7 @@ foreach ($households as $h) {
                                     $display = '';
                                 }
                             ?>
-                                <td class="px-3 py-4 text-center <?= $class ?>">
+                                <td class="px-3 py-4 text-center <?= $class ?> whitespace-normal break-words">
                                     <?= $display ?>
                                 </td>
                             <?php endfor; ?>
