@@ -230,13 +230,13 @@ foreach ($households as $h) {
                                     }
                                 } elseif ($isOverdue) {
                                     $class = 'bg-red-100 text-red-800 font-medium text-xs';
-                                    $display = 'Overdue';
+                                    $display = '';
                                 } elseif ($isCurrent && !$isPaid) {
                                     $class = 'bg-yellow-100 text-yellow-800 font-medium text-xs';
-                                    $display = 'Unpaid';
+                                    $display = '';
                                 } elseif ($isFuture) {
                                     $class = 'bg-gray-50 text-gray-500 text-xs';
-                                    $display = 'Future';
+                                    $display = '';
                                 }
                             ?>
                                 <td class="px-3 py-4 text-center <?= $class ?>">
@@ -498,7 +498,29 @@ prevBtn.addEventListener('click', () => {
 });
 
 nextBtn.addEventListener('click', () => {
-    const visibleRows = rows.filter(r => r.style.display !== 'none');
+    const searchText = (searchInput.value || '').toLowerCase().trim();
+    const statusVal  = statusFilter.value;
+
+    const visibleRows = rows.filter(row => {
+        const matchesSearch = row.dataset.search.includes(searchText);
+
+        let matchesStatus = true;
+        if (statusVal !== 'all') {
+            const cells = row.querySelectorAll('td:not(:first-child):not(:nth-child(2))');
+            const hasPaid = Array.from(cells).some(td => 
+                td.innerHTML.includes('₱') || td.innerHTML.includes('Promo')
+            );
+            const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
+            const hasUnpaid = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
+
+            if (statusVal === 'paid')    matchesStatus = hasPaid;
+            if (statusVal === 'unpaid')  matchesStatus = hasUnpaid || (!hasPaid && !hasOverdue);
+            if (statusVal === 'overdue') matchesStatus = hasOverdue;
+        }
+
+        return matchesSearch && matchesStatus;
+    });
+
     const totalPages = Math.ceil(visibleRows.length / perPage);
     if (currentPage < totalPages) {
         currentPage++;

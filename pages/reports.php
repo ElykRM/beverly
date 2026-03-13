@@ -450,19 +450,30 @@ clearBtn.addEventListener('click', () => {
 });
 
 prevBtn.addEventListener('click', () => {
-    if (currentPage > 1) {
-        currentPage--;
-        filterAndPaginate();
-    }
+    currentPage = Math.max(currentPage - 1, 1);
+    filterAndPaginate();
 });
 
 nextBtn.addEventListener('click', () => {
-    const visibleRows = rows.filter(r => r.style.display !== 'none');
+    const statusVal = statusFilter.value;
+    const blockVal = blockFilter.value.trim().toLowerCase();
+    const lotVal = lotFilter.value.trim().toLowerCase();
+    const nameVal = nameFilter.value.trim().toLowerCase();
+    const duesVal = duesFilter.value;
+
+    const visibleRows = rows.filter(row => {
+        const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
+        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
+        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
+        const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
+        const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
+
+        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
+    });
+
     const totalPages = Math.ceil(visibleRows.length / perPage);
-    if (currentPage < totalPages) {
-        currentPage++;
-        filterAndPaginate();
-    }
+    currentPage = Math.min(currentPage + 1, totalPages);
+    filterAndPaginate();
 });
 
 // Initial load
