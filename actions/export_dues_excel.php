@@ -75,7 +75,30 @@ foreach ($data as $row) {
         if (is_numeric($value)) {
             $sheet->setCellValueExplicit($col . $rowNum, (float)$value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_NUMERIC);
         } else {
-            $sheet->setCellValueExplicit($col . $rowNum, $value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            // remove descriptive strings; use fill color to indicate status
+            $text = strtolower(trim($value));
+            if ($text === 'overdue') {
+                // bad: red fill
+                $sheet->setCellValue($col . $rowNum, '');
+                $sheet->getStyle($col . $rowNum)->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFC7CE']]
+                ]);
+            } elseif ($text === 'unpaid') {
+                // neutral: yellow fill
+                $sheet->setCellValue($col . $rowNum, '');
+                $sheet->getStyle($col . $rowNum)->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFFFFF99']]
+                ]);
+            } elseif ($text === 'future') {
+                // keep blank but maybe gray background
+                $sheet->setCellValue($col . $rowNum, '');
+                $sheet->getStyle($col . $rowNum)->applyFromArray([
+                    'fill' => ['fillType' => \PhpOffice\PhpSpreadsheet\Style\Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD9D9D9']]
+                ]);
+            } else {
+                // promo or other text, keep it as string
+                $sheet->setCellValueExplicit($col . $rowNum, $value, \PhpOffice\PhpSpreadsheet\Cell\DataType::TYPE_STRING);
+            }
         }
     }
 
