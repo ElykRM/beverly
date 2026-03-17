@@ -1,4 +1,7 @@
-<?php include '../includes/header.php'; ?>
+<?php
+include '../includes/auth.php';
+include '../includes/header.php';
+?>
 
 <div class="mb-10">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">

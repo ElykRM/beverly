@@ -133,3 +133,11 @@ WHERE p.deleted_at IS NULL
 
 -- INSERT INTO payments (household_id, or_no, period_year, period_month, amount, is_promo) 
 -- VALUES (1, 'OR-001', 2025, 1, 1000.00, 1);
+
+-- 5. Users (login accounts)
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
