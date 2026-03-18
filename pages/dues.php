@@ -158,7 +158,7 @@ foreach ($households as $h) {
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto lg:overflow-x-visible">
-            <table id="dues-table" class="table-fixed w-full divide-y divide-gray-200">
+            <table id="dues-table" class="w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
