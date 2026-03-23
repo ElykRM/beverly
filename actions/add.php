@@ -1,4 +1,7 @@
-<?php include '../includes/header.php'; ?>
+<?php
+include '../includes/auth.php';
+include '../includes/header.php';
+?>
 
 <div class="mb-10">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 mb-6">
@@ -210,10 +213,22 @@
 
 
 <script>
-// ... (your existing member/vehicle dynamic JS code remains unchanged)
 let memberIndex = 1;
 document.getElementById('add-member-btn').addEventListener('click', function() {
-    // ... your add member code ...
+    const container = document.getElementById('members-container');
+    const memberBlock = document.querySelector('.member-block').cloneNode(true);
+    
+    // Update all input names to use the new index
+    memberBlock.querySelectorAll('input, select').forEach(field => {
+        const oldName = field.getAttribute('name');
+        if (oldName) {
+            field.setAttribute('name', oldName.replace(/members\[\d+\]/, `members[${memberIndex}]`));
+            field.value = '';
+        }
+    });
+    
+    container.appendChild(memberBlock);
+    memberIndex++;
 });
 
 document.addEventListener('click', function(e) {
@@ -227,7 +242,20 @@ document.addEventListener('click', function(e) {
 
 let vehicleIndex = 1;
 document.getElementById('add-vehicle-btn').addEventListener('click', function() {
-    // ... your add vehicle code ...
+    const container = document.getElementById('vehicles-container');
+    const vehicleRow = document.querySelector('.vehicle-row').cloneNode(true);
+    
+    // Update all input names to use the new index
+    vehicleRow.querySelectorAll('input').forEach(field => {
+        const oldName = field.getAttribute('name');
+        if (oldName) {
+            field.setAttribute('name', oldName.replace(/vehicles\[\d+\]/, `vehicles[${vehicleIndex}]`));
+            field.value = '';
+        }
+    });
+    
+    container.appendChild(vehicleRow);
+    vehicleIndex++;
 });
 
 document.addEventListener('click', function(e) {

@@ -1,5 +1,6 @@
 <?php
 // actions/export_dues_excel.php
+require_once '../includes/auth.php';
 
 require_once '../vendor/autoload.php'; // Adjust this path to your vendor folder
 

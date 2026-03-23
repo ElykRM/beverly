@@ -1,4 +1,5 @@
 <?php
+include '../includes/auth.php';
 include '../db.php';
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || !is_numeric($_POST['id'])) {
