@@ -43,7 +43,15 @@ try {
         ");
 
         foreach ($_POST['members'] as $m) {
-            if (empty($m['first_name']) || empty($m['last_name']) || empty($m['relation'])) continue;
+            // Skip if the entire row is empty (no first name, last name, or relation filled in)
+            if (empty($m['first_name']) && empty($m['last_name']) && empty($m['relation'])) {
+                continue;
+            }
+
+            // At least one of first_name or last_name should be provided
+            if (empty($m['first_name']) && empty($m['last_name'])) {
+                continue;
+            }
 
             $mstmt->execute([
                 $household_id,
