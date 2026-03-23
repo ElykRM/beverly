@@ -266,6 +266,7 @@ $vehicles = $vstmt->fetchAll();
     <div class="border-t border-gray-200 pt-8">
         <div class="vehicles-block border border-gray-200 rounded-lg p-6 bg-gray-50">
             <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles</h3>
+            <p class="text-sm text-gray-600 mb-4">Add or edit Vehicles</p>
             
             <div id="vehicles-container" class="space-y-6">
                 <?php if (empty($vehicles)): ?>
@@ -405,13 +406,11 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
     memberIndex++;
 });
 
-// Remove member
+// Remove member - allows removing all
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-member')) {
         const block = e.target.closest('.member-block');
-        if (document.querySelectorAll('.member-block').length > 1) {
-            block.remove();
-        }
+        block.remove();
     }
 });
 
@@ -450,9 +449,7 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-vehicle')) {
         const row = e.target.closest('.vehicle-row');
-        if (document.querySelectorAll('.vehicle-row').length > 1) {
-            row.remove();
-        }
+        row.remove();
     }
 });
 </script>
