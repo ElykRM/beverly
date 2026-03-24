@@ -313,6 +313,52 @@ foreach ($households as $h) {
 </div>
 
 <script>
+// Modal popup for messages
+function showPopupMessage(message) {
+    const existing = document.getElementById('popup-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'popup-overlay';
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        zIndex: '9999'
+    });
+
+    const box = document.createElement('div');
+    box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
+    Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
+    box.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Notice</h3>
+        <p class="text-sm text-gray-700 mb-6"></p>
+        <button type="button" class="modal-ok bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg">OK</button>
+    `;
+
+    const messageEl = box.querySelector('p');
+    messageEl.textContent = message;
+    Object.assign(messageEl.style, {
+        whiteSpace: 'pre-line',
+        textAlign: 'left',
+        lineHeight: '1.5'
+    });
+    const okBtn = box.querySelector('.modal-ok');
+
+    okBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) overlay.remove();
+    });
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    okBtn.focus();
+}
+
 // Client-side search + filter + pagination (unchanged)
 const searchInput   = document.getElementById('search');
 const statusFilter  = document.getElementById('status-filter');
@@ -411,7 +457,7 @@ function exportExcel() {
     })
     .catch(err => {
         console.error('Export failed:', err);
-        alert('Export failed. Check console (F12) for details.');
+        showPopupMessage('Export failed. Check console (F12) for details.');
     });
 }
 

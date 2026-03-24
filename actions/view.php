@@ -216,7 +216,7 @@ $success_msg = $_GET['msg'] ?? '';
                                 <td class="px-6 py-4"><?= htmlspecialchars($p['remarks'] ?: '-') ?></td>
                                 <td class="px-6 py-4 text-center">
                                     <form action="../actions/delete_payment.php" method="POST" 
-                                          onsubmit="return confirm('Are you sure you want to delete this payment record? This cannot be undone.');">
+                                          data-confirm-message="Are you sure you want to delete this payment record? This cannot be undone.">
                                         <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
                                         <input type="hidden" name="household_id" value="<?= $id ?>">
                                         <button type="submit" class="text-red-600 hover:text-red-800 font-medium text-sm">
@@ -243,12 +243,78 @@ $success_msg = $_GET['msg'] ?? '';
     <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         View Dues History
     </a>
-    <form action="../actions/delete.php" method="POST" onsubmit="return confirm('Are you sure you want to delete this household record? This action cannot be undone.');" class="inline-block">
+    <form action="../actions/delete.php" method="POST" data-confirm-message="Are you sure you want to delete this household record? This action cannot be undone." class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             Delete Household
         </button>
     </form>
 </div>
+
+<script>
+// Modal popup for delete confirmations
+function showDeleteConfirmModal(message, formElement) {
+    const existing = document.getElementById('modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-overlay';
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        zIndex: '9999'
+    });
+
+    const box = document.createElement('div');
+    box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
+    Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
+    box.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Confirm Delete</h3>
+        <p class="text-sm text-gray-700 mb-6"></p>
+        <div class="flex justify-center" style="gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-5 rounded-lg">Cancel</button>
+            <button type="button" class="modal-confirm bg-red-700 hover:bg-red-800 text-white font-medium py-2 px-5 rounded-lg">Delete</button>
+        </div>
+    `;
+
+    const messageEl = box.querySelector('p');
+    messageEl.textContent = message;
+    Object.assign(messageEl.style, {
+        whiteSpace: 'pre-line',
+        textAlign: 'left',
+        lineHeight: '1.5'
+    });
+    const confirmBtn = box.querySelector('.modal-confirm');
+    const cancelBtn = box.querySelector('.modal-cancel');
+
+    confirmBtn.addEventListener('click', () => {
+        overlay.remove();
+        formElement.submit();
+    });
+
+    cancelBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) overlay.remove();
+    });
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    confirmBtn.focus();
+}
+
+// Handle delete confirmation forms
+document.querySelectorAll('form[action*="delete"]').forEach(form => {
+    form.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const message = form.getAttribute('data-confirm-message') || 'Are you sure?';
+        showDeleteConfirmModal(message, form);
+    });
+});
+</script>
 
 <?php include '../includes/footer.php'; ?>
