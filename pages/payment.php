@@ -14,6 +14,7 @@ $hstmt->execute();
 $households = $hstmt->fetchAll();
 
 $preselect_id = $_GET['household_id'] ?? null;
+$popup_error = isset($_GET['error']) ? trim((string)$_GET['error']) : '';
 
 // Months & years
 $months = [
@@ -318,17 +319,100 @@ function updatePromoState() {
 }
 
 // Extra safety: block submit if amount invalid
-document.getElementById('payment-form').addEventListener('submit', function(e) {
+const paymentForm = document.getElementById('payment-form');
+
+function showPopupMessage(message) {
+    const existing = document.getElementById('payment-popup-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'payment-popup-overlay';
+    overlay.className = 'fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[9999]';
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        zIndex: '9999'
+    });
+
+    const box = document.createElement('div');
+    box.className = 'bg-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
+    Object.assign(box.style, {
+        width: '100%',
+        maxWidth: '28rem'
+    });
+    box.innerHTML = `
+        <h3 class="text-lg font-bold text-red-700 mb-2">Payment cannot be recorded</h3>
+        <p class="text-sm text-gray-700 mb-5"></p>
+        <div class="text-center">
+            <button type="button" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-5 rounded-lg">OK</button>
+        </div>
+    `;
+
+    box.querySelector('p').textContent = message || 'An unexpected error occurred.';
+    const closeBtn = box.querySelector('button');
+    closeBtn.addEventListener('click', () => overlay.remove());
+    overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) overlay.remove();
+    });
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    closeBtn.focus();
+}
+
+paymentForm.addEventListener('submit', async function(e) {
     const amt = parseFloat(amountInput.value);
     if (isNaN(amt) || amt <= 0) {
         e.preventDefault();
-        alert('Amount must be greater than zero.');
+        showPopupMessage('Amount must be greater than zero.');
         amountInput.focus();
+        return;
+    }
+
+    if (!householdIdField.value) {
+        e.preventDefault();
+        showPopupMessage('Please select a household from the list.');
+        searchInput.focus();
+        return;
+    }
+
+    e.preventDefault();
+
+    try {
+        const response = await fetch(paymentForm.action, {
+            method: 'POST',
+            headers: {
+                'X-Requested-With': 'XMLHttpRequest',
+                'Accept': 'application/json'
+            },
+            body: new FormData(paymentForm)
+        });
+
+        const payload = await response.json().catch(() => ({}));
+
+        if (!response.ok || !payload.success) {
+            const msg = payload.error || 'Unable to record payment.';
+            showPopupMessage(msg);
+            return;
+        }
+
+        window.location.href = payload.redirect || '../pages/payment.php';
+    } catch (err) {
+        showPopupMessage('Network error. Please try again.');
     }
 });
 
 // Initial state
 updatePromoState();
+
+<?php if ($popup_error !== ''): ?>
+showPopupMessage(<?= json_encode($popup_error) ?>);
+<?php endif; ?>
 </script>
 
 <?php include '../includes/footer.php'; ?>

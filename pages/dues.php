@@ -113,11 +113,11 @@ foreach ($households as $h) {
 
     <!-- Filters + Search -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-10">
+        <form method="GET" id="year-form">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Year -->
             <div>
                 <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Select Year</label>
-                <form method="GET" id="year-form">
                     <select name="year" id="year" 
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                             onchange="document.getElementById('year-form').submit()">
@@ -127,7 +127,6 @@ foreach ($households as $h) {
                             </option>
                         <?php endforeach; ?>
                     </select>
-                </form>
             </div>
 
             <!-- Search -->
@@ -154,6 +153,7 @@ foreach ($households as $h) {
                 Clear Filters
             </button>
         </div>
+        </form>
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
@@ -306,7 +306,7 @@ foreach ($households as $h) {
     <?php if (!empty($households)): ?>
         <div class="mt-6 text-right">
             <button onclick="exportExcel()" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-                Export Filtered List to Excel (.xlsx)
+                Export All Households to Excel (.xlsx)
             </button>
         </div>
     <?php endif; ?>
@@ -386,79 +386,14 @@ function filterAndPaginate() {
     }
 }
 
-// Export to Excel (now includes numeric values + total row)
+// Export to Excel (server-side, all households for selected year)
 function exportExcel() {
-    const visibleRows = rows.filter(row => row.style.display !== 'none' && row.id !== 'no-results');
-
-    if (visibleRows.length === 0) {
-        alert('No data to export. Try adjusting filters.');
-        return;
-    }
-
-    const exportData = [];
-    visibleRows.forEach(row => {
-        const cells = row.querySelectorAll('td');
-        // Extract block and lot from address
-        const addr = cells[0].querySelector('div:last-child').textContent.trim();
-        let block = '', lot = '';
-        if (addr !== '—') {
-            const parts = addr.split(' ');
-            if (parts.length >= 4) {
-                block = parts[1];
-                lot = parts[3];
-            }
-        }
-        // Extract clean numeric values where possible
-        const rowData = {
-            block: block,
-            lot: lot,
-            household_name: cells[0].querySelector('div:first-child').textContent.trim(),
-            total_unpaid: parseFloat(cells[1].textContent.trim().replace(/[₱, ]/g, '')) || 0,
-        };
-
-        for (let i = 2; i < cells.length; i++) {
-            const cellText = cells[i].textContent.trim();
-            const monthKey = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][i-2];
-            if (cellText.includes('Promo') || cellText === '—' || cellText === 'Overdue' || cellText === 'Unpaid' || cellText === 'Future') {
-                rowData[monthKey] = cellText; // keep as text
-            } else {
-                rowData[monthKey] = parseFloat(cellText.replace(/[₱, ]/g, '')) || 0; // numeric
-            }
-        }
-        exportData.push(rowData);
-    });
-
-    // Compute totals from the filtered exportData so the spreadsheet reflects
-    // whatever rows are currently visible (honoring search/status filters/pagination).
-    const monthKeys = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
-    const totals = {
-        block: '',
-        lot: '',
-        household_name: 'TOTAL',
-        total_unpaid: 0,
-    };
-    monthKeys.forEach(k => totals[k] = 0);
-
-    exportData.forEach(r => {
-        totals.total_unpaid += parseFloat(r.total_unpaid) || 0;
-        monthKeys.forEach(k => {
-            const v = parseFloat(r[k]);
-            if (!isNaN(v)) totals[k] += v;
-        });
-    });
-
-    // round totals to two decimals
-    totals.total_unpaid = Math.round(totals.total_unpaid * 100) / 100;
-    monthKeys.forEach(k => {
-        totals[k] = Math.round(totals[k] * 100) / 100;
-    });
-
-    exportData.push(totals);
+    const selectedYear = document.getElementById('year').value;
 
     fetch('../actions/export_dues_excel.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ data: exportData })
+        body: JSON.stringify({ year: selectedYear })
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
@@ -468,7 +403,7 @@ function exportExcel() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dues_overview_${new Date().toISOString().slice(0,10)}.xlsx`;
+        a.download = `dues_overview_${selectedYear}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
