@@ -276,9 +276,9 @@ function showDeleteConfirmModal(message, formElement) {
     box.innerHTML = `
         <h3 class="text-lg font-bold text-gray-800 mb-3">Confirm Delete</h3>
         <p class="text-sm text-gray-700 mb-6"></p>
-        <div class="flex justify-center" style="gap: 0.75rem; flex-wrap: wrap;">
-            <button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-5 rounded-lg">Cancel</button>
-            <button type="button" class="modal-confirm bg-red-700 hover:bg-red-800 text-white font-medium py-2 px-5 rounded-lg">Delete</button>
+        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="modal-confirm" style="background-color: #b91c1c; color: white; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer;">Delete</button>
+            <button type="button" class="modal-cancel" style="background-color: #6b7280; color: white; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer;">Cancel</button>
         </div>
     `;
 

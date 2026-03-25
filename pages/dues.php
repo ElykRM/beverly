@@ -387,8 +387,12 @@ function filterAndPaginate() {
             const hasPaid = Array.from(cells).some(td => 
                 td.innerHTML.includes('₱') || td.innerHTML.includes('Promo')
             );
-            const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
-            const hasUnpaid = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
+            const hasOverdue = Array.from(cells).some(td => 
+                td.className.includes('bg-red-100')
+            );
+            const hasUnpaid = Array.from(cells).some(td => 
+                td.className.includes('bg-yellow-100')
+            );
 
             if (statusVal === 'paid')    matchesStatus = hasPaid;
             if (statusVal === 'unpaid')  matchesStatus = hasUnpaid || (!hasPaid && !hasOverdue);

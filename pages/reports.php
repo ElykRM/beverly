@@ -5,12 +5,29 @@ include '../includes/header.php';
 
 // Current date & periods
 $today = new DateTime();
-$currentYear  = (int)$today->format('Y');
+$actualYear   = (int)$today->format('Y');
 $currentMonth = (int)$today->format('n');
 
-$prevMonthDate = (clone $today)->modify('-1 month');
-$prevYear  = (int)$prevMonthDate->format('Y');
-$prevMonth = (int)$prevMonthDate->format('n');
+// Year selection logic
+$minYear = $actualYear - 5;
+$maxYear = $actualYear + 5;
+$years = range($minYear, $maxYear);
+
+// Get selected year from GET parameter or use actual year
+$selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $actualYear;
+if ($selectedYear < $minYear || $selectedYear > $maxYear) {
+    $selectedYear = $actualYear;
+}
+$currentYear = $selectedYear;
+
+// Calculate previous month based on selected year and current month
+if ($currentMonth == 1) {
+    $prevYear = $currentYear - 1;
+    $prevMonth = 12;
+} else {
+    $prevYear = $currentYear;
+    $prevMonth = $currentMonth - 1;
+}
 
 // Full summary stats
 $total_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
@@ -160,38 +177,42 @@ foreach ($households as $h) {
 
     <!-- Filters – instant client-side -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
-        <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
-            <div>
-                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                    <option value="ALL">All</option>
-                    <option value="Owner">Owner</option>
-                    <option value="Renter">Renter</option>
-                    <option value="Member">Member</option>
-                </select>
+        <form id="year-form" method="GET" action="../pages/reports.php">
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+                <div>
+                    <label for="year-select" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
+                    <select id="year-select" name="year" 
+                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
+                            onchange="document.getElementById('year-form').submit()">
+                        <?php foreach ($years as $y): ?>
+                            <option value="<?= $y ?>" <?= ($y == $selectedYear) ? 'selected' : '' ?>><?= $y ?></option>
+                        <?php endforeach; ?>
+                    </select>
+                </div>
+                <div>
+                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <option value="ALL">All</option>
+                        <option value="Owner">Owner</option>
+                        <option value="Renter">Renter</option>
+                        <option value="Member">Member</option>
+                    </select>
+                </div>
+                <div>
+                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
+                    <input type="text" id="name" placeholder="e.g. John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
+                    <select id="dues_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                        <option value="ALL">All</option>
+                        <option value="Paid">Paid</option>
+                        <option value="Unpaid">Unpaid</option>
+                        <option value="Overdue">Overdue</option>
+                    </select>
+                </div>
             </div>
-            <div>
-                <label for="block" class="block text-sm font-medium text-gray-700 mb-1">Block</label>
-                <input type="text" id="block" placeholder="e.g. 5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-            </div>
-            <div>
-                <label for="lot" class="block text-sm font-medium text-gray-700 mb-1">Lot</label>
-                <input type="text" id="lot" placeholder="e.g. 12" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-            </div>
-            <div>
-                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
-                <input type="text" id="name" placeholder="e.g. John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-            </div>
-            <div>
-                <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
-                <select id="dues_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                    <option value="ALL">All</option>
-                    <option value="Paid">Paid</option>
-                    <option value="Unpaid">Unpaid</option>
-                    <option value="Overdue">Overdue</option>
-                </select>
-            </div>
-        </div>
+        </form>
 
         <div class="mt-6 flex gap-4 justify-end">
             <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
@@ -346,18 +367,14 @@ function exportExcel() {
     // Get current visible/filtered rows
     const visibleRows = rows.filter(row => {
         const statusVal = document.getElementById('status').value;
-        const blockVal  = document.getElementById('block').value.trim().toLowerCase();
-        const lotVal    = document.getElementById('lot').value.trim().toLowerCase();
         const nameVal   = document.getElementById('name').value.trim().toLowerCase();
         const duesVal   = document.getElementById('dues_status').value;
 
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
-        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
-        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
+        return matchesStatus && matchesName && matchesDues;
     });
 
     if (visibleRows.length === 0) {
@@ -409,7 +426,7 @@ function exportExcel() {
 </script>
 
 <script>
-// Client-side filtering + pagination (unchanged)
+// Client-side filtering + pagination
 const rows = Array.from(document.querySelectorAll('.household-row'));
 const noResults = document.getElementById('no-results');
 const prevBtn = document.getElementById('prev-page');
@@ -419,8 +436,6 @@ const showingCount = document.getElementById('showing-count');
 const totalFilteredEl = document.getElementById('total-filtered');
 
 const statusFilter = document.getElementById('status');
-const blockFilter = document.getElementById('block');
-const lotFilter = document.getElementById('lot');
 const nameFilter = document.getElementById('name');
 const duesFilter = document.getElementById('dues_status');
 const clearBtn = document.getElementById('clear-filters');
@@ -430,19 +445,15 @@ const perPage = 10;
 
 function filterAndPaginate() {
     const statusVal = statusFilter.value;
-    const blockVal = blockFilter.value.trim().toLowerCase();
-    const lotVal = lotFilter.value.trim().toLowerCase();
     const nameVal = nameFilter.value.trim().toLowerCase();
     const duesVal = duesFilter.value;
 
     const visibleRows = rows.filter(row => {
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
-        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
-        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
+        return matchesStatus && matchesName && matchesDues;
     });
 
     totalFilteredEl.textContent = visibleRows.length;
@@ -481,15 +492,11 @@ function filterAndPaginate() {
 
 // Instant filtering events
 statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
-blockFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
-lotFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
 nameFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
 duesFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
 
 clearBtn.addEventListener('click', () => {
     statusFilter.value = 'ALL';
-    blockFilter.value = '';
-    lotFilter.value = '';
     nameFilter.value = '';
     duesFilter.value = 'ALL';
     currentPage = 1;
@@ -503,19 +510,15 @@ prevBtn.addEventListener('click', () => {
 
 nextBtn.addEventListener('click', () => {
     const statusVal = statusFilter.value;
-    const blockVal = blockFilter.value.trim().toLowerCase();
-    const lotVal = lotFilter.value.trim().toLowerCase();
     const nameVal = nameFilter.value.trim().toLowerCase();
     const duesVal = duesFilter.value;
 
     const visibleRows = rows.filter(row => {
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
-        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
-        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
+        return matchesStatus && matchesName && matchesDues;
     });
 
     const totalPages = Math.ceil(visibleRows.length / perPage);

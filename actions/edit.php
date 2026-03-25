@@ -133,15 +133,15 @@ $vehicles = $vstmt->fetchAll();
                     <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                            <input type="text" name="members[0][last_name]" placeholder="e.g. Dela Cruz" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="members[0][last_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                            <input type="text" name="members[0][first_name]" placeholder="e.g. Juan" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="members[0][first_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                            <input type="text" name="members[0][middle_name]" placeholder="e.g. Santos" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="members[0][middle_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                     </div>
 
@@ -176,18 +176,18 @@ $vehicles = $vstmt->fetchAll();
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Contact No.</label>
-                            <input type="tel" name="members[0][contact_no]" placeholder="e.g. 09171234567" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="tel" name="members[0][contact_no]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
-                            <input type="text" name="members[0][occupation]" placeholder="e.g. Teacher" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="members[0][occupation]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                     </div>
 
                     <!-- Remove button -->
                     <div class="mt-4 text-right">
                         <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium text-sm">
-                            Remove this member
+                            Remove
                         </button>
                     </div>
                 </div>
@@ -249,7 +249,7 @@ $vehicles = $vstmt->fetchAll();
                         <!-- Remove button -->
                         <div class="mt-4 text-right">
                             <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium text-sm">
-                                Remove this member
+                                Remove
                             </button>
                         </div>
                     </div>
@@ -266,26 +266,25 @@ $vehicles = $vstmt->fetchAll();
     <div class="border-t border-gray-200 pt-8">
         <div class="vehicles-block border border-gray-200 rounded-lg p-6 bg-gray-50">
             <h3 class="text-xl font-semibold text-green-800 mb-4">Vehicles</h3>
-            <p class="text-sm text-gray-600 mb-4">Add or edit Vehicles</p>
             
             <div id="vehicles-container" class="space-y-6">
                 <?php if (empty($vehicles)): ?>
                     <div class="vehicle-row grid grid-cols-1 md:grid-cols-5 gap-6">
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-                            <input type="text" name="vehicles[0][brand]" placeholder="e.g. Toyota" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="vehicles[0][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
-                            <input type="text" name="vehicles[0][type_model]" placeholder="e.g. Vios" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="vehicles[0][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-                            <input type="text" name="vehicles[0][color]" placeholder="e.g. White" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="vehicles[0][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div>
                             <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
-                            <input type="text" name="vehicles[0][plate_no]" placeholder="e.g. ABC 1234" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                            <input type="text" name="vehicles[0][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
                         </div>
                         <div class="flex items-end">
                             <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
@@ -346,15 +345,15 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
         <div class="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Last Name</label>
-                <input type="text" name="members[${memberIndex}][last_name]" placeholder="e.g. Dela Cruz" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="text" name="members[${memberIndex}][last_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">First Name</label>
-                <input type="text" name="members[${memberIndex}][first_name]" placeholder="e.g. Juan" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="text" name="members[${memberIndex}][first_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Middle Name</label>
-                <input type="text" name="members[${memberIndex}][middle_name]" placeholder="e.g. Santos" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="text" name="members[${memberIndex}][middle_name]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
         </div>
 
@@ -388,17 +387,17 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Contact No.</label>
-                <input type="tel" name="members[${memberIndex}][contact_no]" placeholder="e.g. 09171234567" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="tel" name="members[${memberIndex}][contact_no]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Occupation</label>
-                <input type="text" name="members[${memberIndex}][occupation]" placeholder="e.g. Teacher" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <input type="text" name="members[${memberIndex}][occupation]" class="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
         </div>
 
         <div class="mt-4 text-right">
             <button type="button" class="remove-member text-red-600 hover:text-red-800 font-medium text-sm">
-                Remove this member
+                Remove
             </button>
         </div>
     `;
@@ -406,11 +405,13 @@ document.getElementById('add-member-btn').addEventListener('click', function() {
     memberIndex++;
 });
 
-// Remove member - allows removing all
+// Remove member
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-member')) {
         const block = e.target.closest('.member-block');
-        block.remove();
+        showDeleteConfirmModal('Are you sure you want to remove this member?', () => {
+            block.remove();
+        });
     }
 });
 
@@ -424,19 +425,19 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
     newRow.innerHTML = `
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Brand</label>
-            <input type="text" name="vehicles[${vehicleIndex}][brand]" placeholder="e.g. Toyota" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="text" name="vehicles[${vehicleIndex}][brand]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Type / Model</label>
-            <input type="text" name="vehicles[${vehicleIndex}][type_model]" placeholder="e.g. Vios" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="text" name="vehicles[${vehicleIndex}][type_model]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Color</label>
-            <input type="text" name="vehicles[${vehicleIndex}][color]" placeholder="e.g. White" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="text" name="vehicles[${vehicleIndex}][color]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div>
             <label class="block text-sm font-medium text-gray-700 mb-1">Plate No.</label>
-            <input type="text" name="vehicles[${vehicleIndex}][plate_no]" placeholder="e.g. ABC 1234" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            <input type="text" name="vehicles[${vehicleIndex}][plate_no]" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
         </div>
         <div class="flex items-end">
             <button type="button" class="remove-vehicle text-red-600 hover:text-red-800 font-medium">Remove</button>
@@ -449,12 +450,14 @@ document.getElementById('add-vehicle-btn').addEventListener('click', function() 
 document.addEventListener('click', function(e) {
     if (e.target.classList.contains('remove-vehicle')) {
         const row = e.target.closest('.vehicle-row');
-        row.remove();
+        showDeleteConfirmModal('Are you sure you want to remove this vehicle?', () => {
+            row.remove();
+        });
     }
 });
 
-// Modal popup helper
-function showConfirmModal(message, onConfirm) {
+// Modal popup for delete confirmations
+function showDeleteConfirmModal(message, onConfirm) {
     const existing = document.getElementById('modal-overlay');
     if (existing) existing.remove();
 
@@ -475,11 +478,11 @@ function showConfirmModal(message, onConfirm) {
     box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
     Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
     box.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-3">Confirm Action</h3>
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Confirm Delete</h3>
         <p class="text-sm text-gray-700 mb-6"></p>
-        <div class="flex justify-center" style="gap: 0.75rem; flex-wrap: wrap;">
-            <button type="button" class="modal-cancel bg-gray-500 hover:bg-gray-600 text-white font-medium py-2 px-5 rounded-lg">Cancel</button>
-            <button type="button" class="modal-confirm bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-5 rounded-lg">Continue</button>
+        <div style="display: flex; justify-content: center; gap: 0.75rem; flex-wrap: wrap;">
+            <button type="button" class="modal-confirm" style="background-color: #b91c1c; color: white; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer;">Delete</button>
+            <button type="button" class="modal-cancel" style="background-color: #6b7280; color: white; font-weight: 500; padding: 0.5rem 1.25rem; border-radius: 0.5rem; border: none; cursor: pointer;">Cancel</button>
         </div>
     `;
 
@@ -495,7 +498,7 @@ function showConfirmModal(message, onConfirm) {
 
     confirmBtn.addEventListener('click', () => {
         overlay.remove();
-        onConfirm(true);
+        onConfirm();
     });
 
     cancelBtn.addEventListener('click', () => overlay.remove());
@@ -508,16 +511,60 @@ function showConfirmModal(message, onConfirm) {
     confirmBtn.focus();
 }
 
+// Modal popup helper
+function showNoticeModal(message) {
+    const existing = document.getElementById('modal-overlay');
+    if (existing) existing.remove();
+
+    const overlay = document.createElement('div');
+    overlay.id = 'modal-overlay';
+    Object.assign(overlay.style, {
+        position: 'fixed',
+        inset: '0',
+        background: 'rgba(0, 0, 0, 0.4)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        padding: '1rem',
+        zIndex: '9999'
+    });
+
+    const box = document.createElement('div');
+    box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
+    Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
+    box.innerHTML = `
+        <h3 class="text-lg font-bold text-gray-800 mb-3">Notice</h3>
+        <p class="text-sm text-gray-700 mb-6"></p>
+        <div class="flex justify-center">
+            <button type="button" class="modal-ok bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-6 rounded-lg">OK</button>
+        </div>
+    `;
+
+    const messageEl = box.querySelector('p');
+    messageEl.textContent = message;
+    Object.assign(messageEl.style, {
+        whiteSpace: 'pre-line',
+        textAlign: 'left',
+        lineHeight: '1.5'
+    });
+    const okBtn = box.querySelector('.modal-ok');
+
+    okBtn.addEventListener('click', () => {
+        overlay.remove();
+    });
+    overlay.addEventListener('click', (ev) => {
+        if (ev.target === overlay) overlay.remove();
+    });
+
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    okBtn.focus();
+}
+
 // Validate form before submit - warn about incomplete entries
 const householdForm = document.querySelector('form');
-let skipValidationOnce = false;
 
 householdForm.addEventListener('submit', function(e) {
-    if (skipValidationOnce) {
-        skipValidationOnce = false;
-        return;
-    }
-
     const incompleteMembers = [];
     const incompleteVehicles = [];
 
@@ -529,9 +576,9 @@ householdForm.addEventListener('submit', function(e) {
         const hasAnyData = firstName || lastName || relation;
 
         if (hasAnyData && !firstName && !lastName) {
-            incompleteMembers.push(`Member ${idx + 1}: At least a first or last name is required.`);
+            incompleteMembers.push(`Member: At least a first or last name is required.`);
         } else if (hasAnyData && !relation && (firstName || lastName)) {
-            incompleteMembers.push(`Member ${idx + 1}: Please select a relation.`);
+            incompleteMembers.push(`Member: Please select a relation to save member information.`);
         }
     });
 
@@ -544,11 +591,11 @@ householdForm.addEventListener('submit', function(e) {
         const hasAnyData = brand || typeModel || color || plateNo;
 
         if (hasAnyData && !plateNo) {
-            incompleteVehicles.push(`Vehicle ${idx + 1}: Plate number is required to save vehicle information.`);
+            incompleteVehicles.push(`Vehicle: Plate number is required to save vehicle information.`);
         }
     });
 
-    // Show warning if there are incomplete entries
+    // Show notice if there are incomplete entries
     if (incompleteMembers.length || incompleteVehicles.length) {
         const warnings = [
             ...incompleteMembers,
@@ -556,15 +603,10 @@ householdForm.addEventListener('submit', function(e) {
         ];
 
         const warningLines = warnings.map((warning, index) => `${index + 1}. ${warning}`).join('\n');
-        const fullMessage = 'Please complete the following entries or remove them:\n\n' + warningLines + '\n\nContinue anyway?';
+        const fullMessage = 'Please complete the following entries or remove them:\n\n' + warningLines;
         
         e.preventDefault();
-        showConfirmModal(fullMessage, (confirmed) => {
-            if (confirmed) {
-                skipValidationOnce = true;
-                householdForm.submit();
-            }
-        });
+        showNoticeModal(fullMessage);
     }
 });
 </script>
