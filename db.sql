@@ -2,14 +2,11 @@
 -- Full Beverly Homes HOA Database Schema
 -- Last updated: March 2025
 -- Includes: households, members, vehicles, payments (with range + promo support)
--- Run this in phpMyAdmin / MySQL Workbench after backing up existing data
+-- IMPORTANT: In phpMyAdmin, click on your database (if0_41510481_beverly) 
+-- in the left sidebar FIRST, then Import this file
 -- =============================================================================
 
-CREATE DATABASE IF NOT EXISTS beverly 
-    CHARACTER SET utf8mb4 
-    COLLATE utf8mb4_unicode_ci;
-
-USE beverly;
+USE if0_41510481_beverly;
 
 -- 1. Households (main table)
 CREATE TABLE IF NOT EXISTS households (
