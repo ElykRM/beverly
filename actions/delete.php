@@ -2,6 +2,9 @@
 include '../includes/auth.php';
 include '../db.php';
 
+// Admin-only action
+require_admin();
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST' || empty($_POST['id']) || !is_numeric($_POST['id'])) {
     header('Location: ../pages/habitants.php');
     exit;

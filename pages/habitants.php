@@ -135,11 +135,13 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 
     <!-- New Household button at bottom -->
+    <?php if (is_admin()): ?>
     <div class="text-center sm:text-right mt-6">
         <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             + New Household
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>
