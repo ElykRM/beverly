@@ -2,9 +2,12 @@
 -- Full Beverly Homes HOA Database Schema
 -- Last updated: March 2025
 -- Includes: households, members, vehicles, payments (with range + promo support)
--- IMPORTANT: In phpMyAdmin, click on your database (if0_41510481_beverly) 
--- in the left sidebar FIRST, then Import this file
+-- Run this in phpMyAdmin / MySQL Workbench after backing up existing data
 -- =============================================================================
+
+CREATE DATABASE IF NOT EXISTS if0_41510481_beverly 
+    CHARACTER SET utf8mb4 
+    COLLATE utf8mb4_unicode_ci;
 
 USE if0_41510481_beverly;
 
@@ -86,43 +89,8 @@ CREATE TABLE payments (
     INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Optional: View that expands range payments into individual months
--- Useful for detailed reporting / checking specific months
-CREATE OR REPLACE VIEW payment_months AS
-SELECT 
-    p.id AS payment_id,
-    p.household_id,
-    p.or_no,
-    p.amount,
-    p.is_promo,
-    p.paid_at,
-    p.remarks,
-    y.year_num AS period_year,
-    m.month_num AS period_month
-FROM payments p
-CROSS JOIN (
-    SELECT 1 AS month_num UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
-    UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 
-    UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12
-) m
-CROSS JOIN (
-    SELECT period_year AS year_num FROM payments WHERE period_to_year IS NULL
-    UNION
-    SELECT y FROM (
-        SELECT period_year AS y FROM payments WHERE period_to_year IS NOT NULL
-        UNION SELECT period_to_year FROM payments WHERE period_to_year IS NOT NULL
-    ) years
-) y
-WHERE p.deleted_at IS NULL
-  AND (
-      (p.period_to_year IS NULL AND m.month_num = p.period_month)
-      OR
-      (p.period_to_year IS NOT NULL 
-       AND y.year_num BETWEEN p.period_year AND p.period_to_year
-       AND (y.year_num > p.period_year OR m.month_num >= p.period_month)
-       AND (y.year_num < p.period_to_year OR m.month_num <= p.period_to_month)
-      )
-  );
+-- Note: VIEWs are not supported on InfinityFree shared hosting
+-- The application queries the payments table directly instead
 
 -- Optional: Add some test data (uncomment if needed for development)
 -- INSERT INTO households (last_name, first_name, home_status, block, lot, street) 
@@ -130,3 +98,11 @@ WHERE p.deleted_at IS NULL
 
 -- INSERT INTO payments (household_id, or_no, period_year, period_month, amount, is_promo) 
 -- VALUES (1, 'OR-001', 2025, 1, 1000.00, 1);
+
+-- 5. Users (login accounts)
+CREATE TABLE IF NOT EXISTS users (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    username VARCHAR(50) UNIQUE NOT NULL,
+    password_hash VARCHAR(255) NOT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
