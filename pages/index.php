@@ -11,26 +11,12 @@ $total_households_stmt = $pdo->query("
 ");
 $total_households = $total_households_stmt->fetch()['total'];
 
-// 2. Total Owners (households with Owner status + their household members)
-$total_owners_stmt = $pdo->prepare("
-    SELECT 
-        (SELECT COUNT(*) FROM households WHERE home_status = 'Owner') +
-        (SELECT COUNT(*) FROM household_members hm 
-         INNER JOIN households h ON hm.household_id = h.id 
-         WHERE h.home_status = 'Owner') AS total
-");
-$total_owners_stmt->execute();
+// 2. Total Owner households
+$total_owners_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Owner'");
 $total_owners = $total_owners_stmt->fetch()['total'];
 
-// 3. Total Renters (households with Renter status + their household members)
-$total_renters_stmt = $pdo->prepare("
-    SELECT 
-        (SELECT COUNT(*) FROM households WHERE home_status = 'Renter') +
-        (SELECT COUNT(*) FROM household_members hm 
-         INNER JOIN households h ON hm.household_id = h.id 
-         WHERE h.home_status = 'Renter') AS total
-");
-$total_renters_stmt->execute();
+// 3. Total Renter households
+$total_renters_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Renter'");
 $total_renters = $total_renters_stmt->fetch()['total'];
 ?>
 

@@ -38,36 +38,24 @@ $total_stmt = $pdo->query("
 ");
 $total = $total_stmt->fetch()['total'];
 
-// 2. Total Owners (households with Owner status + their household members)
-$owners_stmt = $pdo->prepare("
-    SELECT 
-        (SELECT COUNT(*) FROM households WHERE home_status = 'Owner') +
-        (SELECT COUNT(*) FROM household_members hm 
-         INNER JOIN households h ON hm.household_id = h.id 
-         WHERE h.home_status = 'Owner') AS total
-");
-$owners_stmt->execute();
+// 2. Total Owner households
+$owners_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Owner'");
 $owners = $owners_stmt->fetch()['total'];
 
-// 3. Total Renters (households with Renter status + their household members)
-$renters_stmt = $pdo->prepare("
-    SELECT 
-        (SELECT COUNT(*) FROM households WHERE home_status = 'Renter') +
-        (SELECT COUNT(*) FROM household_members hm 
-         INNER JOIN households h ON hm.household_id = h.id 
-         WHERE h.home_status = 'Renter') AS total
-");
-$renters_stmt->execute();
+// 3. Total Renter households
+$renters_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Renter'");
 $renters = $renters_stmt->fetch()['total'];
 
 // Paid this month count - count households only (payments are at household level)
 $paid_current_stmt = $pdo->prepare("
     SELECT COUNT(DISTINCT household_id) AS total
     FROM payments p
-    WHERE (p.period_year = :y AND p.period_month <= :m 
-           AND (p.period_to_year IS NULL OR p.period_to_year > :y 
-                OR (p.period_to_year = :y AND p.period_to_month >= :m)))
-       OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y))
+    WHERE CASE 
+            WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
+              THEN p.period_year = :y AND p.period_month = :m
+            ELSE (:y > p.period_year OR (:y = p.period_year AND :m >= p.period_month))
+              AND (:y < p.period_to_year OR (:y = p.period_to_year AND :m <= p.period_to_month))
+          END
 ");
 $paid_current_stmt->execute([':y' => $currentYear, ':m' => $currentMonth]);
 $paid_this_month = $paid_current_stmt->fetch()['total'];
@@ -86,10 +74,12 @@ $overdue_full_stmt = $pdo->prepare("
     WHERE NOT EXISTS (
         SELECT 1 FROM payments p 
         WHERE h.id = p.household_id 
-          AND ((p.period_year = :py AND p.period_month <= :pm 
-                AND (p.period_to_year IS NULL OR p.period_to_year > :py 
-                     OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
-             OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+          AND CASE 
+                WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
+                  THEN p.period_year = :py AND p.period_month = :pm
+                ELSE (:py > p.period_year OR (:py = p.period_year AND :pm >= p.period_month))
+                  AND (:py < p.period_to_year OR (:py = p.period_to_year AND :pm <= p.period_to_month))
+              END
     )
 ");
 $overdue_full_stmt->execute([':py' => $prevYear, ':pm' => $prevMonth]);
@@ -124,24 +114,38 @@ foreach ($households as $h) {
 
         $startY = (int)$p['period_year'];
         $startM = (int)$p['period_month'];
-        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
-        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
+        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : null;
+        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : null;
 
-        // Current month check
-        if ($currentYear >= $startY && $currentYear <= $endY) {
-            $mStart = ($currentYear == $startY) ? $startM : 1;
-            $mEnd   = ($currentYear == $endY)   ? $endM   : 12;
-            if ($currentMonth >= $mStart && $currentMonth <= $mEnd) {
+        // Single month payment (no range)
+        if ($endY === null && $endM === null) {
+            if ($currentYear == $startY && $currentMonth == $startM) {
                 $currentCovered = true;
             }
-        }
-
-        // Previous month check
-        if ($prevYear >= $startY && $prevYear <= $endY) {
-            $mStart = ($prevYear == $startY) ? $startM : 1;
-            $mEnd   = ($prevYear == $endY)   ? $endM   : 12;
-            if ($prevMonth >= $mStart && $prevMonth <= $mEnd) {
+            if ($prevYear == $startY && $prevMonth == $startM) {
                 $previousCovered = true;
+            }
+        } else {
+            // Multi-month payment range
+            $endY = $endY ?? $startY;
+            $endM = $endM ?? $startM;
+            
+            // Current month check
+            if ($currentYear >= $startY && $currentYear <= $endY) {
+                $rangeStart = ($currentYear == $startY) ? $startM : 1;
+                $rangeEnd   = ($currentYear == $endY)   ? $endM   : 12;
+                if ($currentMonth >= $rangeStart && $currentMonth <= $rangeEnd) {
+                    $currentCovered = true;
+                }
+            }
+
+            // Previous month check
+            if ($prevYear >= $startY && $prevYear <= $endY) {
+                $rangeStart = ($prevYear == $startY) ? $startM : 1;
+                $rangeEnd   = ($prevYear == $endY)   ? $endM   : 12;
+                if ($prevMonth >= $rangeStart && $prevMonth <= $rangeEnd) {
+                    $previousCovered = true;
+                }
             }
         }
     }
