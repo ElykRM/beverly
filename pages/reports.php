@@ -30,48 +30,60 @@ if ($currentMonth == 1) {
 }
 
 // Full summary stats
-$total_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
+// 1. Total households (primary members + household members)
+$total_stmt = $pdo->query("
+    SELECT 
+        (SELECT COUNT(*) FROM households) +
+        (SELECT COUNT(*) FROM household_members) AS total
+");
 $total = $total_stmt->fetch()['total'];
 
-$status_stmt = $pdo->query("SELECT home_status, COUNT(*) AS count FROM households GROUP BY home_status");
-$status_counts = [];
-while ($row = $status_stmt->fetch(PDO::FETCH_ASSOC)) {
-    $status_counts[$row['home_status']] = $row['count'];
-}
-$owners  = $status_counts['Owner']  ?? 0;
-$renters = $status_counts['Renter'] ?? 0;
-$members = $status_counts['Member'] ?? 0;
+// 2. Total Owner households
+$owners_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Owner'");
+$owners = $owners_stmt->fetch()['total'];
 
-// Paid this month count
+// 3. Total Renter households
+$renters_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Renter'");
+$renters = $renters_stmt->fetch()['total'];
+
+// Paid this month count - count households only (payments are at household level)
 $paid_current_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT household_id) AS count
+    SELECT COUNT(DISTINCT household_id) AS total
     FROM payments p
-    WHERE (p.period_year = :y AND p.period_month <= :m 
-           AND (p.period_to_year IS NULL OR p.period_to_year > :y 
-                OR (p.period_to_year = :y AND p.period_to_month >= :m)))
-       OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y))
+    WHERE CASE 
+            WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
+              THEN p.period_year = :y AND p.period_month = :m
+            ELSE (:y > p.period_year OR (:y = p.period_year AND :m >= p.period_month))
+              AND (:y < p.period_to_year OR (:y = p.period_to_year AND :m <= p.period_to_month))
+          END
 ");
 $paid_current_stmt->execute([':y' => $currentYear, ':m' => $currentMonth]);
-$paid_this_month = $paid_current_stmt->fetch()['count'];
+$paid_this_month = $paid_current_stmt->fetch()['total'];
 
-// Unpaid this month = total - paid this month
-$unpaid_this_month = $total - $paid_this_month;
+// Count total households
+$total_households_count_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
+$total_households_count = $total_households_count_stmt->fetch()['total'];
 
-// Overdue (previous month unpaid)
+// Unpaid this month = total households - paid households
+$unpaid_this_month = $total_households_count - $paid_this_month;
+
+// Overdue (previous month unpaid) - count households only
 $overdue_full_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT h.id) AS count
+    SELECT COUNT(DISTINCT h.id) AS total
     FROM households h
     WHERE NOT EXISTS (
         SELECT 1 FROM payments p 
         WHERE h.id = p.household_id 
-          AND ((p.period_year = :py AND p.period_month <= :pm 
-                AND (p.period_to_year IS NULL OR p.period_to_year > :py 
-                     OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
-             OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+          AND CASE 
+                WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
+                  THEN p.period_year = :py AND p.period_month = :pm
+                ELSE (:py > p.period_year OR (:py = p.period_year AND :pm >= p.period_month))
+                  AND (:py < p.period_to_year OR (:py = p.period_to_year AND :pm <= p.period_to_month))
+              END
     )
 ");
 $overdue_full_stmt->execute([':py' => $prevYear, ':pm' => $prevMonth]);
-$total_overdue = $overdue_full_stmt->fetch()['count'];
+$total_overdue = $overdue_full_stmt->fetch()['total'];
 
 // Fetch all households once (client-side filtering)
 $householdsStmt = $pdo->query("
@@ -102,24 +114,38 @@ foreach ($households as $h) {
 
         $startY = (int)$p['period_year'];
         $startM = (int)$p['period_month'];
-        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
-        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
+        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : null;
+        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : null;
 
-        // Current month check
-        if ($currentYear >= $startY && $currentYear <= $endY) {
-            $mStart = ($currentYear == $startY) ? $startM : 1;
-            $mEnd   = ($currentYear == $endY)   ? $endM   : 12;
-            if ($currentMonth >= $mStart && $currentMonth <= $mEnd) {
+        // Single month payment (no range)
+        if ($endY === null && $endM === null) {
+            if ($currentYear == $startY && $currentMonth == $startM) {
                 $currentCovered = true;
             }
-        }
-
-        // Previous month check
-        if ($prevYear >= $startY && $prevYear <= $endY) {
-            $mStart = ($prevYear == $startY) ? $startM : 1;
-            $mEnd   = ($prevYear == $endY)   ? $endM   : 12;
-            if ($prevMonth >= $mStart && $prevMonth <= $mEnd) {
+            if ($prevYear == $startY && $prevMonth == $startM) {
                 $previousCovered = true;
+            }
+        } else {
+            // Multi-month payment range
+            $endY = $endY ?? $startY;
+            $endM = $endM ?? $startM;
+            
+            // Current month check
+            if ($currentYear >= $startY && $currentYear <= $endY) {
+                $rangeStart = ($currentYear == $startY) ? $startM : 1;
+                $rangeEnd   = ($currentYear == $endY)   ? $endM   : 12;
+                if ($currentMonth >= $rangeStart && $currentMonth <= $rangeEnd) {
+                    $currentCovered = true;
+                }
+            }
+
+            // Previous month check
+            if ($prevYear >= $startY && $prevYear <= $endY) {
+                $rangeStart = ($prevYear == $startY) ? $startM : 1;
+                $rangeEnd   = ($prevYear == $endY)   ? $endM   : 12;
+                if ($prevMonth >= $rangeStart && $prevMonth <= $rangeEnd) {
+                    $previousCovered = true;
+                }
             }
         }
     }
@@ -154,7 +180,7 @@ foreach ($households as $h) {
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
-            <p class="text-sm text-gray-600">Total Households</p>
+            <p class="text-sm text-gray-600">Total Residents</p>
             <p class="text-4xl font-bold text-green-800"><?= $total ?></p>
         </div>
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
