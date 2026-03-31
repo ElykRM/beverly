@@ -1,11 +1,10 @@
 <?php
 // db.php - PDO connection
-// InfinityFree Hosting Configuration
 
-$host     = 'sql208.infinityfree.com';
-$dbname   = 'if0_41510481_beverly';
-$username = 'if0_41510481';
-$password = 'F1Iagq6Qs3NM0N';
+$host     = 'localhost';
+$dbname   = 'beverly';          // Change if your database name is different
+$username = 'root';             // Change if needed
+$password = '';                 // Change if needed
 
 try {
     $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8mb4", $username, $password);

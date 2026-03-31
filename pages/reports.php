@@ -30,48 +30,90 @@ if ($currentMonth == 1) {
 }
 
 // Full summary stats
-$total_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
+// 1. Total households (primary members + household members)
+$total_stmt = $pdo->query("
+    SELECT 
+        (SELECT COUNT(*) FROM households) +
+        (SELECT COUNT(*) FROM household_members) AS total
+");
 $total = $total_stmt->fetch()['total'];
 
-$status_stmt = $pdo->query("SELECT home_status, COUNT(*) AS count FROM households GROUP BY home_status");
-$status_counts = [];
-while ($row = $status_stmt->fetch(PDO::FETCH_ASSOC)) {
-    $status_counts[$row['home_status']] = $row['count'];
-}
-$owners  = $status_counts['Owner']  ?? 0;
-$renters = $status_counts['Renter'] ?? 0;
-$members = $status_counts['Member'] ?? 0;
+// 2. Total Owners (households with Owner status + their household members)
+$owners_stmt = $pdo->prepare("
+    SELECT 
+        (SELECT COUNT(*) FROM households WHERE home_status = 'Owner') +
+        (SELECT COUNT(*) FROM household_members hm 
+         INNER JOIN households h ON hm.household_id = h.id 
+         WHERE h.home_status = 'Owner') AS total
+");
+$owners_stmt->execute();
+$owners = $owners_stmt->fetch()['total'];
 
-// Paid this month count
+// 3. Total Renters (households with Renter status + their household members)
+$renters_stmt = $pdo->prepare("
+    SELECT 
+        (SELECT COUNT(*) FROM households WHERE home_status = 'Renter') +
+        (SELECT COUNT(*) FROM household_members hm 
+         INNER JOIN households h ON hm.household_id = h.id 
+         WHERE h.home_status = 'Renter') AS total
+");
+$renters_stmt->execute();
+$renters = $renters_stmt->fetch()['total'];
+
+// Paid this month count - count all people in households that paid
 $paid_current_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT household_id) AS count
-    FROM payments p
-    WHERE (p.period_year = :y AND p.period_month <= :m 
-           AND (p.period_to_year IS NULL OR p.period_to_year > :y 
-                OR (p.period_to_year = :y AND p.period_to_month >= :m)))
-       OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y))
+    SELECT 
+        (SELECT COUNT(*) FROM households h
+         WHERE EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :y AND p.period_month <= :m 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :y 
+                         OR (p.period_to_year = :y AND p.period_to_month >= :m)))
+                 OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y)))
+        )) +
+        (SELECT COUNT(*) FROM household_members hm
+         INNER JOIN households h ON hm.household_id = h.id
+         WHERE EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :y AND p.period_month <= :m 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :y 
+                         OR (p.period_to_year = :y AND p.period_to_month >= :m)))
+                 OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y)))
+        )) AS total
 ");
 $paid_current_stmt->execute([':y' => $currentYear, ':m' => $currentMonth]);
-$paid_this_month = $paid_current_stmt->fetch()['count'];
+$paid_this_month = $paid_current_stmt->fetch()['total'];
 
 // Unpaid this month = total - paid this month
 $unpaid_this_month = $total - $paid_this_month;
 
-// Overdue (previous month unpaid)
+// Overdue (previous month unpaid) - count all people in overdue households
 $overdue_full_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT h.id) AS count
-    FROM households h
-    WHERE NOT EXISTS (
-        SELECT 1 FROM payments p 
-        WHERE h.id = p.household_id 
-          AND ((p.period_year = :py AND p.period_month <= :pm 
-                AND (p.period_to_year IS NULL OR p.period_to_year > :py 
-                     OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
-             OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
-    )
+    SELECT 
+        (SELECT COUNT(DISTINCT h.id) FROM households h
+         WHERE NOT EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :py AND p.period_month <= :pm 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :py 
+                         OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
+                 OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+        )) +
+        (SELECT COUNT(*) FROM household_members hm
+         INNER JOIN households h ON hm.household_id = h.id
+         WHERE NOT EXISTS (
+            SELECT 1 FROM payments p 
+            WHERE h.id = p.household_id 
+              AND ((p.period_year = :py AND p.period_month <= :pm 
+                    AND (p.period_to_year IS NULL OR p.period_to_year > :py 
+                         OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
+                 OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
+        )) AS total
 ");
 $overdue_full_stmt->execute([':py' => $prevYear, ':pm' => $prevMonth]);
-$total_overdue = $overdue_full_stmt->fetch()['count'];
+$total_overdue = $overdue_full_stmt->fetch()['total'];
 
 // Fetch all households once (client-side filtering)
 $householdsStmt = $pdo->query("
