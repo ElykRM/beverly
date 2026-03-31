@@ -3,6 +3,9 @@ include '../includes/auth.php';
 include '../db.php';
 include '../includes/header.php';
 
+// Admin-only page
+require_admin();
+
 if (!isset($_GET['id']) || !is_numeric($_GET['id'])) {
     echo "<div class='text-red-600 text-center text-xl my-10'>Invalid household ID</div>";
     include '../includes/footer.php';

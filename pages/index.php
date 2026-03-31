@@ -50,13 +50,13 @@ $total_overdue = $overdue_stmt->fetch()['total_overdue'];
 
 <div class="container mx-auto px-4 py-8">
     <h1 class="text-4xl font-bold text-green-800 mb-8 text-center">Dashboard</h1>
-    <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+    
+    <!-- Navigation Cards -->
+    <div class="grid grid-cols-1 md:grid-cols-2 <?php if (is_viewer()): ?>lg:grid-cols-3<?php else: ?>lg:grid-cols-4<?php endif; ?> gap-6 mb-8">
         <!-- Total Residents -->
         <a href="./habitants.php" class="bg-white p-6 rounded-xl shadow border border-gray-200 hover:scale-105 transition-all block">
             <h3 class="text-xl font-semibold text-green-800 mb-2">Habitants / Residents</h3>
             <p class="text-gray-600 mb-6">Manage households & members</p>
-            <div class="text-2xl font-bold text-green-700 mt-4"><?= number_format($total_residents) ?></div>
-            <p class="text-gray-600">Total Households</p>
             <span class="text-sm text-green-600 hover:text-green-900 inline-block">View All →</span>
         </a>
 
@@ -64,32 +64,51 @@ $total_overdue = $overdue_stmt->fetch()['total_overdue'];
         <a href="./dues.php" class="bg-white p-6 rounded-xl shadow border border-gray-200 hover:scale-105 transition-all block">
             <h3 class="text-xl font-semibold text-green-800 mb-2">Monthly Dues</h3>
             <p class="text-gray-600 mb-6">View monthly payment status</p>
-            <div class="text-2xl font-bold text-green-700 mt-4"><?= number_format($total_paid_current) ?></div>
-            <p class="text-gray-600">Total Paid</p>
             <span class="text-sm text-green-600 hover:text-green-900 inline-block">View Dues →</span>
         </a>
 
-        <!-- Unpaid This Month (current calculation) -->
+        <!-- Reports -->
         <a href="./reports.php" class="bg-white p-6 rounded-xl shadow border border-gray-200 hover:scale-105 transition-all block">
             <h3 class="text-xl font-semibold text-green-800 mb-2">Reports</h3>
             <p class="text-gray-600 mb-6">Overview, filters, export</p>
-            <div class="text-2xl font-bold text-yellow-800 mt-4">
-                <?= number_format($total_unpaid_current) ?>
-            </div>
-            <p class="text-gray-600">Total Unpaid</p>
             <span class="text-sm text-green-600 hover:text-green-900 inline-block">View Reports →</span>
         </a>
 
-        <!-- Overdue (previous month unpaid) -->
+        <!-- Record Payment (Admin Only) -->
+        <?php if (is_admin()): ?>
         <a href="../pages/payment.php" class="bg-white p-6 rounded-xl shadow border border-gray-200 hover:scale-105 transition-all block">
             <h3 class="text-xl font-semibold text-green-800 mb-2">Record Payment</h3>
             <p class="text-gray-600 mb-6">Add new dues payment</p>
-            <div class="text-2xl font-bold text-red-600 mt-4">
-                <?= number_format($total_overdue) ?>
-            </div>
-            <p class="text-gray-600">Total Overdue</p>
             <span class="text-sm text-green-600 hover:text-green-900 inline-block">Log Payments →</span>
         </a>
+        <?php endif; ?>
+    </div>
+
+    <!-- Statistics Row -->
+    <div class="grid grid-cols-1 md:grid-cols-2 <?php if (is_viewer()): ?>lg:grid-cols-4<?php else: ?>lg:grid-cols-4<?php endif; ?> gap-6">
+        <!-- Total Households -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <p class="text-sm text-gray-600 mb-1">Total Households</p>
+            <div class="text-3xl font-bold text-green-700"><?= number_format($total_residents) ?></div>
+        </div>
+
+        <!-- Total Paid -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <p class="text-sm text-gray-600 mb-1">Total Paid</p>
+            <div class="text-3xl font-bold text-green-700"><?= number_format($total_paid_current) ?></div>
+        </div>
+
+        <!-- Total Unpaid -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <p class="text-sm text-gray-600 mb-1">Total Unpaid</p>
+            <div class="text-3xl font-bold text-yellow-800"><?= number_format($total_unpaid_current) ?></div>
+        </div>
+
+        <!-- Total Overdue -->
+        <div class="bg-white p-6 rounded-xl shadow border border-gray-200">
+            <p class="text-sm text-gray-600 mb-1">Total Overdue</p>
+            <div class="text-3xl font-bold text-red-600"><?= number_format($total_overdue) ?></div>
+        </div>
     </div>
 </div>
 

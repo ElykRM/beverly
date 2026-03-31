@@ -1,6 +1,9 @@
 <?php
 include '../includes/auth.php';
 include '../includes/header.php';
+
+// Admin-only page
+require_admin();
 ?>
 
 <div class="mb-10">

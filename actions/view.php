@@ -215,6 +215,7 @@ $success_msg = $_GET['msg'] ?? '';
                                 <td class="px-6 py-4 whitespace-nowrap"><?= date('M d, Y h:i A', strtotime($p['paid_at'])) ?></td>
                                 <td class="px-6 py-4"><?= htmlspecialchars($p['remarks'] ?: '-') ?></td>
                                 <td class="px-6 py-4 text-center">
+                                    <?php if (is_admin()): ?>
                                     <form action="../actions/delete_payment.php" method="POST" 
                                           data-confirm-message="Are you sure you want to delete this payment record? This cannot be undone.">
                                         <input type="hidden" name="payment_id" value="<?= $p['id'] ?>">
@@ -223,6 +224,7 @@ $success_msg = $_GET['msg'] ?? '';
                                             Delete
                                         </button>
                                     </form>
+                                    <?php endif; ?>
                                 </td>
                             </tr>
                         <?php endforeach; ?>
@@ -234,21 +236,25 @@ $success_msg = $_GET['msg'] ?? '';
 </div>
 
 <div class="mt-8 flex flex-wrap justify-center gap-4">
+    <?php if (is_admin()): ?>
     <a href="../actions/edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Edit Household
     </a>
     <a href="../pages/payment.php?household_id=<?= $id ?>" class="inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Log Payment
     </a>
+    <?php endif; ?>
     <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         View Dues History
     </a>
+    <?php if (is_admin()): ?>
     <form action="../actions/delete.php" method="POST" data-confirm-message="Are you sure you want to delete this household record? This action cannot be undone." class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             Delete Household
         </button>
     </form>
+    <?php endif; ?>
 </div>
 
 <script>

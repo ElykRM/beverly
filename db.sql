@@ -2,12 +2,8 @@
 -- Full Beverly Homes HOA Database Schema
 -- Last updated: March 2025
 -- Includes: households, members, vehicles, payments (with range + promo support)
--- Run this in phpMyAdmin / MySQL Workbench after backing up existing data
+-- For InfinityFree hosting - uses existing database provisioned by host
 -- =============================================================================
-
-CREATE DATABASE IF NOT EXISTS if0_41510481_beverly 
-    CHARACTER SET utf8mb4 
-    COLLATE utf8mb4_unicode_ci;
 
 USE if0_41510481_beverly;
 
@@ -89,9 +85,6 @@ CREATE TABLE payments (
     INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- Note: VIEWs are not supported on InfinityFree shared hosting
--- The application queries the payments table directly instead
-
 -- Optional: Add some test data (uncomment if needed for development)
 -- INSERT INTO households (last_name, first_name, home_status, block, lot, street) 
 -- VALUES ('Dela Cruz', 'Juan', 'Owner', '5', '12', 'Main St');
@@ -104,5 +97,7 @@ CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
     username VARCHAR(50) UNIQUE NOT NULL,
     password_hash VARCHAR(255) NOT NULL,
+    role ENUM('admin', 'viewer') NOT NULL DEFAULT 'viewer',
+    is_setup_complete TINYINT(1) DEFAULT 0 COMMENT '1 = first admin created, setup disabled',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;

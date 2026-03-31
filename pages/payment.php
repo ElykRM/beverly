@@ -3,6 +3,9 @@ include '../includes/auth.php';
 include '../db.php';
 include '../includes/header.php';
 
+// Admin-only page
+require_admin();
+
 // Fetch households
 $hstmt = $pdo->prepare("
     SELECT id, CONCAT(last_name, ', ', first_name, ' — ',
