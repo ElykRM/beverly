@@ -100,6 +100,14 @@ $success_msg = $_GET['msg'] ?? '';
                 <label class="block text-sm font-medium text-gray-500">No. of Pets</label>
                 <p class="mt-1 text-lg"><?= $household['num_pets'] ?></p>
             </div>
+            <div class="lg:col-span-2">
+                <label class="block text-sm font-medium text-gray-500">Date of Move-in / Move-out</label>
+                <p class="mt-1 text-lg">
+                    <?= $household['move_in_date'] ? date('M d, Y', strtotime($household['move_in_date'])) : '-' ?> 
+                    / 
+                    <?= $household['move_out_date'] ? date('M d, Y', strtotime($household['move_out_date'])) : '<span class="text-green-600 font-semibold">Up to present</span>' ?>
+                </p>
+            </div>
         </div>
 
         <!-- Additional Members – Compact -->
@@ -184,7 +192,7 @@ $success_msg = $_GET['msg'] ?? '';
             <p class="text-gray-500 italic">No payments recorded yet.</p>
         <?php else: ?>
             <div class="overflow-x-auto">
-                <table class="min-w-full divide-y divide-gray-200">
+                <table id="payment-history-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR No.</th>
@@ -195,7 +203,7 @@ $success_msg = $_GET['msg'] ?? '';
                             <th class="px-6 py-3 text-center text-xs font-medium text-gray-500 uppercase">Actions</th>
                         </tr>
                     </thead>
-                    <tbody class="divide-y divide-gray-200">
+                    <tbody class="divide-y divide-gray-200" id="payment-tbody">
                         <?php foreach ($payments as $p): ?>
                             <?php
                             $period = sprintf("%d-%02d", $p['period_year'], $p['period_month']);
@@ -203,7 +211,7 @@ $success_msg = $_GET['msg'] ?? '';
                                 $period .= sprintf(" to %d-%02d", $p['period_to_year'], $p['period_to_month']);
                             }
                             ?>
-                            <tr class="hover:bg-gray-50">
+                            <tr class="hover:bg-gray-50 payment-row">
                                 <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($p['or_no'] ?: '-') ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap"><?= htmlspecialchars($period) ?></td>
                                 <td class="px-6 py-4 whitespace-nowrap text-right font-medium text-green-700">
@@ -231,11 +239,31 @@ $success_msg = $_GET['msg'] ?? '';
                     </tbody>
                 </table>
             </div>
+
+            <!-- Pagination Controls -->
+            <div id="payment-pagination" class="p-4 bg-gray-50 border-t border-gray-200">
+                <div class="flex flex-col sm:flex-row justify-between items-center gap-4">
+                    <div class="text-sm text-gray-600">
+                        Showing <span id="payment-showing-count">0</span> of <span id="payment-total-count"><?= count($payments) ?></span> payments
+                    </div>
+                    <button onclick="exportPaymentHistoryExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
+                        Export to Excel
+                    </button>
+                    <div class="flex gap-2 items-center">
+                        <button id="payment-prev" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
+                        <div id="payment-page-numbers" class="flex gap-2"></div>
+                        <button id="payment-next" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Next</button>
+                    </div>
+                </div>
+            </div>
         <?php endif; ?>
     </div>
 </div>
 
 <div class="mt-8 flex flex-wrap justify-center gap-4">
+    <a href="../actions/export_household_pdf.php?id=<?= $id ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+        Download PDF
+    </a>
     <?php if (is_admin()): ?>
     <a href="../actions/edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Edit Household
@@ -321,6 +349,97 @@ document.querySelectorAll('form[action*="delete"]').forEach(form => {
         showDeleteConfirmModal(message, form);
     });
 });
+
+// Payment History Pagination (5 per page)
+const paymentRows = Array.from(document.querySelectorAll('.payment-row'));
+const paymentPrev = document.getElementById('payment-prev');
+const paymentNext = document.getElementById('payment-next');
+const paymentPageNumbers = document.getElementById('payment-page-numbers');
+const paymentShowingCount = document.getElementById('payment-showing-count');
+
+if (paymentRows.length > 0) {
+    let paymentCurrentPage = 1;
+    const paymentPerPage = 5;
+
+    function paginatePayments() {
+        const totalPages = Math.ceil(paymentRows.length / paymentPerPage) || 1;
+        paymentCurrentPage = Math.min(paymentCurrentPage, totalPages);
+
+        const start = (paymentCurrentPage - 1) * paymentPerPage;
+        const end = start + paymentPerPage;
+        const pageRows = paymentRows.slice(start, end);
+
+        paymentRows.forEach(r => r.style.display = 'none');
+        pageRows.forEach(row => row.style.display = '');
+
+        paymentShowingCount.textContent = Math.min(paymentRows.length - start, paymentPerPage);
+
+        paymentPrev.disabled = paymentCurrentPage <= 1;
+        paymentNext.disabled = paymentCurrentPage >= totalPages;
+
+        paymentPageNumbers.innerHTML = '';
+        for (let i = 1; i <= totalPages; i++) {
+            const btn = document.createElement('button');
+            btn.textContent = i;
+            btn.type = 'button';
+            btn.className = `px-3 py-1 rounded-lg text-sm font-medium ${
+                i === paymentCurrentPage ? 'bg-green-600 text-white' : 'bg-gray-200 hover:bg-gray-300 text-gray-700'
+            }`;
+            btn.onclick = () => {
+                paymentCurrentPage = i;
+                paginatePayments();
+            };
+            paymentPageNumbers.appendChild(btn);
+        }
+    }
+
+    paymentPrev.addEventListener('click', () => {
+        if (paymentCurrentPage > 1) {
+            paymentCurrentPage--;
+            paginatePayments();
+        }
+    });
+
+    paymentNext.addEventListener('click', () => {
+        const totalPages = Math.ceil(paymentRows.length / paymentPerPage);
+        if (paymentCurrentPage < totalPages) {
+            paymentCurrentPage++;
+            paginatePayments();
+        }
+    });
+
+    paginatePayments();
+}
+
+// Export Payment History to Excel
+function exportPaymentHistoryExcel() {
+    const householdId = <?= $id ?>;
+    const householdName = '<?= addslashes($household['last_name'] . ', ' . $household['first_name']) ?>';
+
+    fetch('../actions/export_payment_history.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ household_id: householdId, household_name: householdName })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Export failed');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `Payment_History_${householdName.replace(/,/g, '')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+        console.error('Export error:', err);
+        alert('Failed to export payment history');
+    });
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>

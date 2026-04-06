@@ -108,7 +108,7 @@ $vehicles = $vstmt->fetchAll();
         </div>
 
         <!-- Row 3: Address -->
-        <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-4 gap-6 mb-6">
             <div>
                 <label class="block text-sm font-medium text-gray-700 mb-1">Block</label>
                 <input type="text" name="block" value="<?= htmlspecialchars($household['block'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
@@ -120,6 +120,26 @@ $vehicles = $vstmt->fetchAll();
             <div class="md:col-span-2">
                 <label class="block text-sm font-medium text-gray-700 mb-1">Street</label>
                 <input type="text" name="street" value="<?= htmlspecialchars($household['street'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            </div>
+        </div>
+
+        <!-- Row 4: Move-in/Move-out Dates -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date of move-in</label>
+                <input type="date" name="move_in_date" id="move_in_date" value="<?= htmlspecialchars($household['move_in_date'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <p class="text-xs text-gray-500 mt-1">Ex: April 6, 2026</p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-700 mb-1">Move-out status</label>
+                <select name="move_out_status" id="move_out_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    <option value="current" <?= empty($household['move_out_date']) ? 'selected' : '' ?>>Currently living here</option>
+                    <option value="moved" <?= !empty($household['move_out_date']) ? 'selected' : '' ?>>Moved out - Select date</option>
+                </select>
+            </div>
+            <div id="move_out_date_group" class="<?= empty($household['move_out_date']) ? 'hidden' : '' ?>">
+                <label class="block text-sm font-medium text-gray-700 mb-1">Date of move-out</label>
+                <input type="date" name="move_out_date" id="move_out_date" value="<?= htmlspecialchars($household['move_out_date'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
         </div>
     </div>
@@ -612,6 +632,23 @@ householdForm.addEventListener('submit', function(e) {
         showNoticeModal(fullMessage);
     }
 });
+
+// Handle move-out status dropdown
+const moveOutStatusSelect = document.getElementById('move_out_status');
+const moveOutDateGroup = document.getElementById('move_out_date_group');
+const moveOutDateField = document.getElementById('move_out_date');
+
+if (moveOutStatusSelect) {
+    moveOutStatusSelect.addEventListener('change', function() {
+        if (this.value === 'current') {
+            moveOutDateGroup.classList.add('hidden');
+            moveOutDateField.value = '';
+        } else {
+            moveOutDateGroup.classList.remove('hidden');
+            moveOutDateField.focus();
+        }
+    });
+}
 </script>
 
 <?php include '../includes/footer.php'; ?>

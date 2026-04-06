@@ -1,7 +1,9 @@
 -- =============================================================================
 -- Full Beverly Homes HOA Database Schema
--- Last updated: March 2025
--- Includes: households, members, vehicles, payments (with range + promo support)
+-- Last updated: April 6, 2026
+-- Includes: households (with move-in/move-out tracking), members, vehicles, 
+--           payments (with range + promo support + duplicate prevention)
+-- Features: Move-in/move-out dates, payment history, duplicate payment validation
 -- Run this in phpMyAdmin / MySQL Workbench after backing up existing data
 -- =============================================================================
 
@@ -27,6 +29,8 @@ CREATE TABLE IF NOT EXISTS households (
     contact_no VARCHAR(20) DEFAULT NULL,
     occupation VARCHAR(100) DEFAULT NULL,
     num_pets TINYINT UNSIGNED DEFAULT 0,
+    move_in_date DATE DEFAULT NULL COMMENT 'Date household member moved in (e.g., April 6, 2026)',
+    move_out_date DATE DEFAULT NULL COMMENT 'Date moved out; NULL = "Currently living here" / "Up to present"',
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
     INDEX idx_full_name (last_name, first_name),

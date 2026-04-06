@@ -11,32 +11,41 @@ $id = (int)$_POST['id'];
 try {
     $pdo->beginTransaction();
 
+    // Handle move-out date based on status dropdown
+    $moveOutDate = null;
+    if (isset($_POST['move_out_status']) && $_POST['move_out_status'] === 'moved' && !empty($_POST['move_out_date'])) {
+        $moveOutDate = $_POST['move_out_date'];
+    }
+
     // Update primary household
     $stmt = $pdo->prepare("
-        UPDATE households SET
-            last_name = ?, first_name = ?, middle_name = ?,
-            home_status = ?, block = ?, lot = ?, street = ?,
-            birthday = ?, gender = ?,
-            contact_no = ?, occupation = ?, num_pets = ?,
-            updated_at = NOW()
-        WHERE id = ?
-    ");
+            UPDATE households SET
+                last_name = ?, first_name = ?, middle_name = ?,
+                home_status = ?, block = ?, lot = ?, street = ?,
+                birthday = ?, gender = ?,
+                contact_no = ?, occupation = ?, num_pets = ?,
+                move_in_date = ?, move_out_date = ?,
+                updated_at = NOW()
+            WHERE id = ?
+        ");
 
-    $stmt->execute([
-        $_POST['last_name'] ?? '',
-        $_POST['first_name'] ?? '',
-        $_POST['middle_name'] ?? null,
-        $_POST['home_status'] ?? 'Owner',
-        $_POST['block'] ?? null,
-        $_POST['lot'] ?? null,
-        $_POST['street'] ?? null,
-        $_POST['birthday'] ?: null,
-        $_POST['gender'] ?? null,
-        $_POST['contact_no'] ?? null,
-        $_POST['occupation'] ?? null,
-        $_POST['num_pets'] ?? 0,
-        $id
-    ]);
+        $stmt->execute([
+            $_POST['last_name'] ?? '',
+            $_POST['first_name'] ?? '',
+            $_POST['middle_name'] ?? null,
+            $_POST['home_status'] ?? 'Owner',
+            $_POST['block'] ?? null,
+            $_POST['lot'] ?? null,
+            $_POST['street'] ?? null,
+            $_POST['birthday'] ?: null,
+            $_POST['gender'] ?? null,
+            $_POST['contact_no'] ?? null,
+            $_POST['occupation'] ?? null,
+            $_POST['num_pets'] ?? 0,
+            $_POST['move_in_date'] ?: null,
+            $moveOutDate,
+            $id
+        ]);
 
     // Delete existing additional members
     $pdo->prepare("DELETE FROM household_members WHERE household_id = ?")->execute([$id]);

@@ -7,7 +7,7 @@ include '../includes/header.php';
 $currentYear = (int)date('Y');
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $currentYear;
 
-$minYear = $currentYear - 5;
+$minYear = $currentYear - 10;
 $maxYear = $currentYear + 5;
 if ($selectedYear < $minYear || $selectedYear > $maxYear) {
     $selectedYear = $currentYear;
