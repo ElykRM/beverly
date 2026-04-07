@@ -1,6 +1,5 @@
 <?php
 // db.php - PDO connection
-// InfinityFree Hosting Configuration
 
 $host     = 'sql208.infinityfree.com';
 $dbname   = 'if0_41510481_beverly';

@@ -10,11 +10,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $pdo->beginTransaction();
 
+    // Handle move-out date based on status dropdown
+    $moveOutDate = null;
+    if (isset($_POST['move_out_status']) && $_POST['move_out_status'] === 'moved' && !empty($_POST['move_out_date'])) {
+        $moveOutDate = $_POST['move_out_date'];
+    }
+
     // Insert primary household
     $stmt = $pdo->prepare("
         INSERT INTO households 
-        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets, move_in_date, move_out_date)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -29,7 +35,9 @@ try {
         $_POST['gender'] ?? null,
         $_POST['contact_no'] ?? null,
         $_POST['occupation'] ?? null,
-        $_POST['num_pets'] ?? 0
+        $_POST['num_pets'] ?? 0,
+        $_POST['move_in_date'] ?: null,
+        $moveOutDate
     ]);
 
     $household_id = $pdo->lastInsertId();

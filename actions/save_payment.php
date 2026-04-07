@@ -160,6 +160,48 @@ try {
         }
     }
 
+    // Check if any of the months being paid for are already paid
+    $requestedMonths = [];
+    if ($is_promo) {
+        // Promo covers Jan-Dec of the selected year
+        for ($m = 1; $m <= 12; $m++) {
+            $requestedMonths[] = ($period_year * 100) + $m;
+        }
+    } else {
+        // Single or range payment
+        for ($y = $period_year; $y <= ($period_to_year ?? $period_year); $y++) {
+            $mFrom = ($y === $period_year) ? $period_month : 1;
+            $mTo = ($y === ($period_to_year ?? $period_year)) ? ($period_to_month ?? $period_month) : 12;
+            for ($m = $mFrom; $m <= $mTo; $m++) {
+                $requestedMonths[] = ($y * 100) + $m;
+            }
+        }
+    }
+
+    // Find overlap with already paid months
+    $alreadyPaidMonths = [];
+    foreach ($requestedMonths as $monthKey) {
+        if (isset($covered[$monthKey])) {
+            $year = intdiv($monthKey, 100);
+            $month = $monthKey % 100;
+            $alreadyPaidMonths[] = $monthName[$month] . ' ' . $year;
+        }
+    }
+
+    // If any months are already paid, throw error
+    if (!empty($alreadyPaidMonths)) {
+        if ($is_promo) {
+            // For yearly promo, just show a simple message
+            throw new Exception("Cannot apply yearly promo. Some months are already paid this year.");
+        } else {
+            // For single or range, show which months are already paid
+            $monthList = implode(', ', array_map(function($m) {
+                return explode(' ', $m)[0]; // Extract just the month name
+            }, $alreadyPaidMonths));
+            throw new Exception("Already paid: " . $monthList);
+        }
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO payments 
         (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks, is_promo)
