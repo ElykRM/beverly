@@ -9,7 +9,7 @@ $actualYear   = (int)$today->format('Y');
 $currentMonth = (int)$today->format('n');
 
 // Year selection logic
-$minYear = $actualYear - 5;
+$minYear = $actualYear - 10;
 $maxYear = $actualYear + 5;
 $years = range($minYear, $maxYear);
 

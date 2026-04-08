@@ -26,7 +26,7 @@ $months = [
     '09' => 'September', '10' => 'October', '11' => 'November', '12' => 'December'
 ];
 $currentYear = (int)date('Y');
-$years = range($currentYear - 5, $currentYear + 10);
+$years = range($currentYear - 10, $currentYear + 10);
 ?>
 
 <div class="mb-10">
