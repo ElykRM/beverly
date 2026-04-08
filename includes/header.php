@@ -74,10 +74,6 @@ if (session_status() === PHP_SESSION_NONE) {
                         Admin Panel
                     </a>
                     <?php endif; ?>
-                    <a href="../pages/index.php"
-                       class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
-                        Home
-                    </a>
                     <a href="../actions/logout.php"
                        class="block px-4 py-3 text-sm text-red-600 hover:bg-red-50 font-medium border-t border-gray-200 transition-colors">
                         Logout
