@@ -10,17 +10,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 try {
     $pdo->beginTransaction();
 
-    // Handle move-out date based on status dropdown
-    $moveOutDate = null;
-    if (isset($_POST['move_out_status']) && $_POST['move_out_status'] === 'moved' && !empty($_POST['move_out_date'])) {
-        $moveOutDate = $_POST['move_out_date'];
-    }
-
     // Insert primary household
     $stmt = $pdo->prepare("
         INSERT INTO households 
-        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets, move_in_date, move_out_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -35,9 +29,7 @@ try {
         $_POST['gender'] ?? null,
         $_POST['contact_no'] ?? null,
         $_POST['occupation'] ?? null,
-        $_POST['num_pets'] ?? 0,
-        $_POST['move_in_date'] ?: null,
-        $moveOutDate
+        $_POST['num_pets'] ?? 0
     ]);
 
     $household_id = $pdo->lastInsertId();
@@ -51,15 +43,7 @@ try {
         ");
 
         foreach ($_POST['members'] as $m) {
-            // Skip if the entire row is empty (no first name, last name, or relation filled in)
-            if (empty($m['first_name']) && empty($m['last_name']) && empty($m['relation'])) {
-                continue;
-            }
-
-            // At least one of first_name or last_name should be provided
-            if (empty($m['first_name']) && empty($m['last_name'])) {
-                continue;
-            }
+            if (empty($m['first_name']) || empty($m['last_name']) || empty($m['relation'])) continue;
 
             $mstmt->execute([
                 $household_id,

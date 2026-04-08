@@ -2,18 +2,6 @@
 include '../includes/auth.php';
 include '../db.php';
 
-$isAjax = (
-    (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ||
-    (isset($_SERVER['HTTP_ACCEPT']) && strpos((string)$_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
-);
-
-function respondJson(int $statusCode, array $payload): void {
-    http_response_code($statusCode);
-    header('Content-Type: application/json');
-    echo json_encode($payload);
-    exit;
-}
-
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../pages/payment.php');
     exit;
@@ -21,12 +9,6 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $pdo->beginTransaction();
-
-    $monthName = [
-        1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
-        5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
-        9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
-    ];
 
     $household_id = (int)($_POST['household_id'] ?? 0);
     if ($household_id <= 0) {
@@ -94,114 +76,6 @@ try {
         $amount           = 1000.00; // enforce promo price
     }
 
-    // Enforce oldest-first payment: no paying later months while earlier due months are unpaid.
-    $today = new DateTime();
-    $currentDueYear = (int)$today->format('Y');
-    $currentDueMonth = (int)$today->format('n');
-
-    $requestedStartIndex = ($period_year * 12) + $period_month;
-
-    $paidStmt = $pdo->prepare("\n        SELECT period_year, period_month, period_to_year, period_to_month\n        FROM payments\n        WHERE household_id = ? AND deleted_at IS NULL\n    ");
-    $paidStmt->execute([$household_id]);
-    $existingPayments = $paidStmt->fetchAll();
-
-    $minPaidYear = null;
-    foreach ($existingPayments as $p) {
-        $py = (int)$p['period_year'];
-        if ($py > 0 && ($minPaidYear === null || $py < $minPaidYear)) {
-            $minPaidYear = $py;
-        }
-    }
-
-    // Start from January of the earliest relevant year.
-    $dueStartYear = $minPaidYear !== null ? min($minPaidYear, $period_year) : $period_year;
-    $dueStartMonth = 1;
-
-    $covered = [];
-    foreach ($existingPayments as $p) {
-        $startY = (int)$p['period_year'];
-        $startM = (int)$p['period_month'];
-        $endY = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
-        $endM = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
-
-        if ($endY < $startY || ($endY === $startY && $endM < $startM)) {
-            continue;
-        }
-
-        for ($y = $startY; $y <= $endY; $y++) {
-            $mFrom = ($y === $startY) ? $startM : 1;
-            $mTo = ($y === $endY) ? $endM : 12;
-            for ($m = $mFrom; $m <= $mTo; $m++) {
-                $covered[($y * 100) + $m] = true;
-            }
-        }
-    }
-
-    $earliestUnpaidYear = null;
-    $earliestUnpaidMonth = null;
-    for ($y = $dueStartYear; $y <= $currentDueYear; $y++) {
-        $mFrom = ($y === $dueStartYear) ? $dueStartMonth : 1;
-        $mTo = ($y === $currentDueYear) ? $currentDueMonth : 12;
-        for ($m = $mFrom; $m <= $mTo; $m++) {
-            $key = ($y * 100) + $m;
-            if (!isset($covered[$key])) {
-                $earliestUnpaidYear = $y;
-                $earliestUnpaidMonth = $m;
-                break 2;
-            }
-        }
-    }
-
-    if ($earliestUnpaidYear !== null) {
-        $earliestUnpaidIndex = ($earliestUnpaidYear * 12) + $earliestUnpaidMonth;
-        if ($requestedStartIndex > $earliestUnpaidIndex) {
-            $firstDueLabel = $monthName[$earliestUnpaidMonth] . ' ' . $earliestUnpaidYear;
-            throw new Exception("Please pay overdue/current dues first. Earliest unpaid month is $firstDueLabel.");
-        }
-    }
-
-    // Check if any of the months being paid for are already paid
-    $requestedMonths = [];
-    if ($is_promo) {
-        // Promo covers Jan-Dec of the selected year
-        for ($m = 1; $m <= 12; $m++) {
-            $requestedMonths[] = ($period_year * 100) + $m;
-        }
-    } else {
-        // Single or range payment
-        for ($y = $period_year; $y <= ($period_to_year ?? $period_year); $y++) {
-            $mFrom = ($y === $period_year) ? $period_month : 1;
-            $mTo = ($y === ($period_to_year ?? $period_year)) ? ($period_to_month ?? $period_month) : 12;
-            for ($m = $mFrom; $m <= $mTo; $m++) {
-                $requestedMonths[] = ($y * 100) + $m;
-            }
-        }
-    }
-
-    // Find overlap with already paid months
-    $alreadyPaidMonths = [];
-    foreach ($requestedMonths as $monthKey) {
-        if (isset($covered[$monthKey])) {
-            $year = intdiv($monthKey, 100);
-            $month = $monthKey % 100;
-            $alreadyPaidMonths[] = $monthName[$month] . ' ' . $year;
-        }
-    }
-
-    // If any months are already paid, throw error
-    if (!empty($alreadyPaidMonths)) {
-        if ($is_promo) {
-            // For yearly promo, just show a simple message
-            throw new Exception("Cannot apply yearly promo. Some months are already paid this year.");
-        } else {
-            // For single or range, show which months are already paid
-            $monthList = implode(', ', array_map(function($m) {
-                return explode(' ', $m)[0]; // Extract just the month name
-            }, $alreadyPaidMonths));
-            throw new Exception("Already paid: " . $monthList);
-        }
-    }
-
     $stmt = $pdo->prepare("
         INSERT INTO payments 
         (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks, is_promo)
@@ -222,33 +96,13 @@ try {
 
     $pdo->commit();
 
-    $successRedirect = "../actions/view.php?id=$household_id&msg=Payment recorded successfully";
-    if ($isAjax) {
-        respondJson(200, [
-            'success' => true,
-            'redirect' => $successRedirect,
-            'message' => 'Payment recorded successfully.'
-        ]);
-    }
-
-    header("Location: $successRedirect");
+    header("Location: ../actions/view.php?id=$household_id&msg=Payment recorded successfully");
     exit;
 
 } catch (Exception $e) {
-    if ($pdo->inTransaction()) {
-        $pdo->rollBack();
-    }
-
-    if ($isAjax) {
-        respondJson(422, [
-            'success' => false,
-            'error' => $e->getMessage()
-        ]);
-    }
-
-    $errorMessage = urlencode($e->getMessage());
-    $redirectId = (int)($household_id ?? 0);
-    header("Location: ../pages/payment.php?error={$errorMessage}&household_id={$redirectId}");
-    exit;
+    $pdo->rollBack();
+    echo "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg mx-auto max-w-4xl'>
+            Error: " . htmlspecialchars($e->getMessage()) . "
+          </div>";
 }
 ?>

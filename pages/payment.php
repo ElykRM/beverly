@@ -3,9 +3,6 @@ include '../includes/auth.php';
 include '../db.php';
 include '../includes/header.php';
 
-// Admin-only page
-require_admin();
-
 // Fetch households
 $hstmt = $pdo->prepare("
     SELECT id, CONCAT(last_name, ', ', first_name, ' — ',
@@ -17,7 +14,6 @@ $hstmt->execute();
 $households = $hstmt->fetchAll();
 
 $preselect_id = $_GET['household_id'] ?? null;
-$popup_error = isset($_GET['error']) ? trim((string)$_GET['error']) : '';
 
 // Months & years
 $months = [
@@ -43,19 +39,15 @@ $years = range($currentYear - 5, $currentYear + 10);
 
         <!-- Household -->
         <div class="mb-8">
-            <label for="household_search" class="block text-sm font-medium text-gray-700 mb-2">Household</label>
-            <div class="relative">
-                <input 
-                    type="text" 
-                    id="household_search" 
-                    placeholder="Search by name, block, or lot..." 
-                    autocomplete="off"
-                    class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                <input type="hidden" name="household_id" id="household_id" required>
-                <ul id="suggestions-list" class="absolute top-full left-0 right-0 mt-1 border border-gray-300 bg-white rounded-lg shadow-lg max-h-60 overflow-y-auto hidden z-50">
-                </ul>
-            </div>
-            <p id="selection-note" class="text-xs text-gray-500 mt-1 hidden">Selected: <span id="selected-household"></span></p>
+            <label for="household_id" class="block text-sm font-medium text-gray-700 mb-2">Household</label>
+            <select name="household_id" id="household_id" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                <option value="">— Select household —</option>
+                <?php foreach ($households as $h): ?>
+                    <option value="<?= $h['id'] ?>" <?= $preselect_id == $h['id'] ? 'selected' : '' ?>>
+                        <?= htmlspecialchars($h['display']) ?>
+                    </option>
+                <?php endforeach; ?>
+            </select>
         </div>
 
         <!-- Payment type toggle -->
@@ -180,84 +172,6 @@ $years = range($currentYear - 5, $currentYear + 10);
 </div>
 
 <script>
-// Household search with suggestions
-const households = <?= json_encode($households) ?>;
-const searchInput = document.getElementById('household_search');
-const suggestionsList = document.getElementById('suggestions-list');
-const householdIdField = document.getElementById('household_id');
-const selectionNote = document.getElementById('selection-note');
-const selectedHouseholdSpan = document.getElementById('selected-household');
-
-let selectedHouseholdData = null;
-
-// Preselect if coming from view page
-<?php if ($preselect_id): ?>
-const preselectedHousehold = households.find(h => h.id == <?= $preselect_id ?>);
-if (preselectedHousehold) {
-    searchInput.value = preselectedHousehold.display;
-    householdIdField.value = preselectedHousehold.id;
-    selectedHouseholdData = preselectedHousehold;
-    selectionNote.classList.remove('hidden');
-    selectedHouseholdSpan.textContent = preselectedHousehold.display;
-}
-<?php endif; ?>
-
-searchInput.addEventListener('input', (e) => {
-    const query = e.target.value.toLowerCase().trim();
-    
-    if (query.length === 0) {
-        suggestionsList.classList.add('hidden');
-        householdIdField.value = '';
-        selectionNote.classList.add('hidden');
-        selectedHouseholdData = null;
-        return;
-    }
-
-    const filtered = households.filter(h => 
-        h.display.toLowerCase().includes(query)
-    );
-
-    if (filtered.length === 0) {
-        suggestionsList.innerHTML = '<li class="px-4 py-2 text-gray-500 italic">No households found</li>';
-        suggestionsList.classList.remove('hidden');
-        householdIdField.value = '';
-        selectionNote.classList.add('hidden');
-        return;
-    }
-
-    suggestionsList.innerHTML = filtered.map(h => `
-        <li class="px-4 py-3 hover:bg-green-50 cursor-pointer border-b border-gray-100 last:border-b-0 transition"
-            data-id="${h.id}" data-display="${h.display}">
-            ${h.display}
-        </li>
-    `).join('');
-
-    suggestionsList.classList.remove('hidden');
-
-    // Add click handlers to suggestions
-    document.querySelectorAll('#suggestions-list li').forEach(item => {
-        item.addEventListener('click', () => {
-            const id = item.dataset.id;
-            const display = item.dataset.display;
-            
-            searchInput.value = display;
-            householdIdField.value = id;
-            selectedHouseholdData = { id, display };
-            suggestionsList.classList.add('hidden');
-            
-            selectionNote.classList.remove('hidden');
-            selectedHouseholdSpan.textContent = display;
-        });
-    });
-});
-
-// Hide suggestions when clicking outside
-document.addEventListener('click', (e) => {
-    if (e.target !== searchInput && !suggestionsList.contains(e.target)) {
-        suggestionsList.classList.add('hidden');
-    }
-});
-
 // Toggle single vs range
 const typeRadios = document.querySelectorAll('input[name="payment_type"]');
 const singleGroup = document.getElementById('single-group');
@@ -322,100 +236,17 @@ function updatePromoState() {
 }
 
 // Extra safety: block submit if amount invalid
-const paymentForm = document.getElementById('payment-form');
-
-function showPopupMessage(message) {
-    const existing = document.getElementById('payment-popup-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'payment-popup-overlay';
-    overlay.className = 'fixed inset-0 bg-black/40 flex items-center justify-center p-4 z-[9999]';
-    Object.assign(overlay.style, {
-        position: 'fixed',
-        inset: '0',
-        background: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-        zIndex: '9999'
-    });
-
-    const box = document.createElement('div');
-    box.className = 'bg-white w-full max-w-md rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
-    Object.assign(box.style, {
-        width: '100%',
-        maxWidth: '28rem'
-    });
-    box.innerHTML = `
-        <h3 class="text-lg font-bold text-red-700 mb-2">Payment cannot be recorded</h3>
-        <p class="text-sm text-gray-700 mb-5"></p>
-        <div class="text-center">
-            <button type="button" class="bg-green-700 hover:bg-green-800 text-white font-medium py-2 px-5 rounded-lg">OK</button>
-        </div>
-    `;
-
-    box.querySelector('p').textContent = message || 'An unexpected error occurred.';
-    const closeBtn = box.querySelector('button');
-    closeBtn.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => {
-        if (ev.target === overlay) overlay.remove();
-    });
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    closeBtn.focus();
-}
-
-paymentForm.addEventListener('submit', async function(e) {
+document.getElementById('payment-form').addEventListener('submit', function(e) {
     const amt = parseFloat(amountInput.value);
     if (isNaN(amt) || amt <= 0) {
         e.preventDefault();
-        showPopupMessage('Amount must be greater than zero.');
+        alert('Amount must be greater than zero.');
         amountInput.focus();
-        return;
-    }
-
-    if (!householdIdField.value) {
-        e.preventDefault();
-        showPopupMessage('Please select a household from the list.');
-        searchInput.focus();
-        return;
-    }
-
-    e.preventDefault();
-
-    try {
-        const response = await fetch(paymentForm.action, {
-            method: 'POST',
-            headers: {
-                'X-Requested-With': 'XMLHttpRequest',
-                'Accept': 'application/json'
-            },
-            body: new FormData(paymentForm)
-        });
-
-        const payload = await response.json().catch(() => ({}));
-
-        if (!response.ok || !payload.success) {
-            const msg = payload.error || 'Unable to record payment.';
-            showPopupMessage(msg);
-            return;
-        }
-
-        window.location.href = payload.redirect || '../pages/payment.php';
-    } catch (err) {
-        showPopupMessage('Network error. Please try again.');
     }
 });
 
 // Initial state
 updatePromoState();
-
-<?php if ($popup_error !== ''): ?>
-showPopupMessage(<?= json_encode($popup_error) ?>);
-<?php endif; ?>
 </script>
 
 <?php include '../includes/footer.php'; ?>

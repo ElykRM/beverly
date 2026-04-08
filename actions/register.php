@@ -43,9 +43,9 @@ if ($check->fetch()) {
     exit;
 }
 
-// Insert new user with 'viewer' role
+// Insert new user
 $hash = password_hash($password, PASSWORD_BCRYPT);
-$stmt = $pdo->prepare("INSERT INTO users (username, password_hash, role) VALUES (?, ?, 'viewer')");
+$stmt = $pdo->prepare("INSERT INTO users (username, password_hash) VALUES (?, ?)");
 $stmt->execute([$username, $hash]);
 
 header('Location: ../pages/login.php?success=' . urlencode('Account created! You can now sign in.'));

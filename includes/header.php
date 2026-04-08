@@ -62,18 +62,7 @@ if (session_status() === PHP_SESSION_NONE) {
                         <p class="text-sm font-semibold text-gray-900">
                             <?= htmlspecialchars($_SESSION['username'] ?? '') ?>
                         </p>
-                        <?php if (isset($_SESSION['role'])): ?>
-                        <p class="text-xs text-gray-500 mt-1">
-                            Role: <span class="font-medium"><?= ucfirst($_SESSION['role']) ?></span>
-                        </p>
-                        <?php endif; ?>
                     </div>
-                    <?php if (isset($_SESSION['role']) && $_SESSION['role'] === 'admin'): ?>
-                    <a href="../pages/admin_panel.php"
-                       class="block px-4 py-2 text-sm text-blue-600 hover:bg-blue-50 transition-colors font-medium">
-                        Admin Panel
-                    </a>
-                    <?php endif; ?>
                     <a href="../pages/index.php"
                        class="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 transition-colors">
                         Home

@@ -5,85 +5,56 @@ include '../includes/header.php';
 
 // Current date & periods
 $today = new DateTime();
-$actualYear   = (int)$today->format('Y');
+$currentYear  = (int)$today->format('Y');
 $currentMonth = (int)$today->format('n');
 
-// Year selection logic
-$minYear = $actualYear - 5;
-$maxYear = $actualYear + 5;
-$years = range($minYear, $maxYear);
-
-// Get selected year from GET parameter or use actual year
-$selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $actualYear;
-if ($selectedYear < $minYear || $selectedYear > $maxYear) {
-    $selectedYear = $actualYear;
-}
-$currentYear = $selectedYear;
-
-// Calculate previous month based on selected year and current month
-if ($currentMonth == 1) {
-    $prevYear = $currentYear - 1;
-    $prevMonth = 12;
-} else {
-    $prevYear = $currentYear;
-    $prevMonth = $currentMonth - 1;
-}
+$prevMonthDate = (clone $today)->modify('-1 month');
+$prevYear  = (int)$prevMonthDate->format('Y');
+$prevMonth = (int)$prevMonthDate->format('n');
 
 // Full summary stats
-// 1. Total households (primary members + household members)
-$total_stmt = $pdo->query("
-    SELECT 
-        (SELECT COUNT(*) FROM households) +
-        (SELECT COUNT(*) FROM household_members) AS total
-");
+$total_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
 $total = $total_stmt->fetch()['total'];
 
-// 2. Total Owner households
-$owners_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Owner'");
-$owners = $owners_stmt->fetch()['total'];
+$status_stmt = $pdo->query("SELECT home_status, COUNT(*) AS count FROM households GROUP BY home_status");
+$status_counts = [];
+while ($row = $status_stmt->fetch(PDO::FETCH_ASSOC)) {
+    $status_counts[$row['home_status']] = $row['count'];
+}
+$owners  = $status_counts['Owner']  ?? 0;
+$renters = $status_counts['Renter'] ?? 0;
+$members = $status_counts['Member'] ?? 0;
 
-// 3. Total Renter households
-$renters_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households WHERE home_status = 'Renter'");
-$renters = $renters_stmt->fetch()['total'];
-
-// Paid this month count - count households only (payments are at household level)
+// Paid this month count
 $paid_current_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT household_id) AS total
+    SELECT COUNT(DISTINCT household_id) AS count
     FROM payments p
-    WHERE CASE 
-            WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
-              THEN p.period_year = :y AND p.period_month = :m
-            ELSE (:y > p.period_year OR (:y = p.period_year AND :m >= p.period_month))
-              AND (:y < p.period_to_year OR (:y = p.period_to_year AND :m <= p.period_to_month))
-          END
+    WHERE (p.period_year = :y AND p.period_month <= :m 
+           AND (p.period_to_year IS NULL OR p.period_to_year > :y 
+                OR (p.period_to_year = :y AND p.period_to_month >= :m)))
+       OR (p.period_year < :y AND (p.period_to_year IS NULL OR p.period_to_year >= :y))
 ");
 $paid_current_stmt->execute([':y' => $currentYear, ':m' => $currentMonth]);
-$paid_this_month = $paid_current_stmt->fetch()['total'];
+$paid_this_month = $paid_current_stmt->fetch()['count'];
 
-// Count total households
-$total_households_count_stmt = $pdo->query("SELECT COUNT(*) AS total FROM households");
-$total_households_count = $total_households_count_stmt->fetch()['total'];
+// Unpaid this month = total - paid this month
+$unpaid_this_month = $total - $paid_this_month;
 
-// Unpaid this month = total households - paid households
-$unpaid_this_month = $total_households_count - $paid_this_month;
-
-// Overdue (previous month unpaid) - count households only
+// Overdue (previous month unpaid)
 $overdue_full_stmt = $pdo->prepare("
-    SELECT COUNT(DISTINCT h.id) AS total
+    SELECT COUNT(DISTINCT h.id) AS count
     FROM households h
     WHERE NOT EXISTS (
         SELECT 1 FROM payments p 
         WHERE h.id = p.household_id 
-          AND CASE 
-                WHEN p.period_to_year IS NULL AND p.period_to_month IS NULL
-                  THEN p.period_year = :py AND p.period_month = :pm
-                ELSE (:py > p.period_year OR (:py = p.period_year AND :pm >= p.period_month))
-                  AND (:py < p.period_to_year OR (:py = p.period_to_year AND :pm <= p.period_to_month))
-              END
+          AND ((p.period_year = :py AND p.period_month <= :pm 
+                AND (p.period_to_year IS NULL OR p.period_to_year > :py 
+                     OR (p.period_to_year = :py AND p.period_to_month >= :pm)))
+             OR (p.period_year < :py AND (p.period_to_year IS NULL OR p.period_to_year >= :py)))
     )
 ");
 $overdue_full_stmt->execute([':py' => $prevYear, ':pm' => $prevMonth]);
-$total_overdue = $overdue_full_stmt->fetch()['total'];
+$total_overdue = $overdue_full_stmt->fetch()['count'];
 
 // Fetch all households once (client-side filtering)
 $householdsStmt = $pdo->query("
@@ -114,38 +85,24 @@ foreach ($households as $h) {
 
         $startY = (int)$p['period_year'];
         $startM = (int)$p['period_month'];
-        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : null;
-        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : null;
+        $endY   = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
+        $endM   = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
 
-        // Single month payment (no range)
-        if ($endY === null && $endM === null) {
-            if ($currentYear == $startY && $currentMonth == $startM) {
+        // Current month check
+        if ($currentYear >= $startY && $currentYear <= $endY) {
+            $mStart = ($currentYear == $startY) ? $startM : 1;
+            $mEnd   = ($currentYear == $endY)   ? $endM   : 12;
+            if ($currentMonth >= $mStart && $currentMonth <= $mEnd) {
                 $currentCovered = true;
             }
-            if ($prevYear == $startY && $prevMonth == $startM) {
-                $previousCovered = true;
-            }
-        } else {
-            // Multi-month payment range
-            $endY = $endY ?? $startY;
-            $endM = $endM ?? $startM;
-            
-            // Current month check
-            if ($currentYear >= $startY && $currentYear <= $endY) {
-                $rangeStart = ($currentYear == $startY) ? $startM : 1;
-                $rangeEnd   = ($currentYear == $endY)   ? $endM   : 12;
-                if ($currentMonth >= $rangeStart && $currentMonth <= $rangeEnd) {
-                    $currentCovered = true;
-                }
-            }
+        }
 
-            // Previous month check
-            if ($prevYear >= $startY && $prevYear <= $endY) {
-                $rangeStart = ($prevYear == $startY) ? $startM : 1;
-                $rangeEnd   = ($prevYear == $endY)   ? $endM   : 12;
-                if ($prevMonth >= $rangeStart && $prevMonth <= $rangeEnd) {
-                    $previousCovered = true;
-                }
+        // Previous month check
+        if ($prevYear >= $startY && $prevYear <= $endY) {
+            $mStart = ($prevYear == $startY) ? $startM : 1;
+            $mEnd   = ($prevYear == $endY)   ? $endM   : 12;
+            if ($prevMonth >= $mStart && $prevMonth <= $mEnd) {
+                $previousCovered = true;
             }
         }
     }
@@ -180,7 +137,7 @@ foreach ($households as $h) {
     <!-- Summary Cards -->
     <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-6 mb-10">
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
-            <p class="text-sm text-gray-600">Total Residents</p>
+            <p class="text-sm text-gray-600">Total Households</p>
             <p class="text-4xl font-bold text-green-800"><?= $total ?></p>
         </div>
         <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 text-center">
@@ -203,42 +160,38 @@ foreach ($households as $h) {
 
     <!-- Filters – instant client-side -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-8">
-        <form id="year-form" method="GET" action="../pages/reports.php">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-6">
-                <div>
-                    <label for="year-select" class="block text-sm font-medium text-gray-700 mb-1">Year</label>
-                    <select id="year-select" name="year" 
-                            class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
-                            onchange="document.getElementById('year-form').submit()">
-                        <?php foreach ($years as $y): ?>
-                            <option value="<?= $y ?>" <?= ($y == $selectedYear) ? 'selected' : '' ?>><?= $y ?></option>
-                        <?php endforeach; ?>
-                    </select>
-                </div>
-                <div>
-                    <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                    <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                        <option value="ALL">All</option>
-                        <option value="Owner">Owner</option>
-                        <option value="Renter">Renter</option>
-                        <option value="Member">Member</option>
-                    </select>
-                </div>
-                <div>
-                    <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
-                    <input type="text" id="name" placeholder="e.g. John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                </div>
-                <div>
-                    <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
-                    <select id="dues_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
-                        <option value="ALL">All</option>
-                        <option value="Paid">Paid</option>
-                        <option value="Unpaid">Unpaid</option>
-                        <option value="Overdue">Overdue</option>
-                    </select>
-                </div>
+        <div class="grid grid-cols-1 md:grid-cols-5 gap-6">
+            <div>
+                <label for="status" class="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                <select id="status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    <option value="ALL">All</option>
+                    <option value="Owner">Owner</option>
+                    <option value="Renter">Renter</option>
+                    <option value="Member">Member</option>
+                </select>
             </div>
-        </form>
+            <div>
+                <label for="block" class="block text-sm font-medium text-gray-700 mb-1">Block</label>
+                <input type="text" id="block" placeholder="e.g. 5" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div>
+                <label for="lot" class="block text-sm font-medium text-gray-700 mb-1">Lot</label>
+                <input type="text" id="lot" placeholder="e.g. 12" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div>
+                <label for="name" class="block text-sm font-medium text-gray-700 mb-1">Name Search</label>
+                <input type="text" id="name" placeholder="e.g. John Doe" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+            </div>
+            <div>
+                <label for="dues_status" class="block text-sm font-medium text-gray-700 mb-1">Dues Status</label>
+                <select id="dues_status" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                    <option value="ALL">All</option>
+                    <option value="Paid">Paid</option>
+                    <option value="Unpaid">Unpaid</option>
+                    <option value="Overdue">Overdue</option>
+                </select>
+            </div>
+        </div>
 
         <div class="mt-6 flex gap-4 justify-end">
             <button id="clear-filters" class="text-green-700 hover:text-green-900 underline font-medium">
@@ -342,69 +295,27 @@ foreach ($households as $h) {
 </div>
 
 <script>
-// Modal popup for messages
-function showPopupMessage(message) {
-    const existing = document.getElementById('popup-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'popup-overlay';
-    Object.assign(overlay.style, {
-        position: 'fixed',
-        inset: '0',
-        background: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-        zIndex: '9999'
-    });
-
-    const box = document.createElement('div');
-    box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
-    Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
-    box.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-3">Notice</h3>
-        <p class="text-sm text-gray-700 mb-6"></p>
-        <button type="button" class="modal-ok bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg">OK</button>
-    `;
-
-    const messageEl = box.querySelector('p');
-    messageEl.textContent = message;
-    Object.assign(messageEl.style, {
-        whiteSpace: 'pre-line',
-        textAlign: 'left',
-        lineHeight: '1.5'
-    });
-    const okBtn = box.querySelector('.modal-ok');
-
-    okBtn.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => {
-        if (ev.target === overlay) overlay.remove();
-    });
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    okBtn.focus();
-}
-
 // Client-side trigger to export filtered data to Excel via server
 function exportExcel() {
     // Get current visible/filtered rows
     const visibleRows = rows.filter(row => {
         const statusVal = document.getElementById('status').value;
+        const blockVal  = document.getElementById('block').value.trim().toLowerCase();
+        const lotVal    = document.getElementById('lot').value.trim().toLowerCase();
         const nameVal   = document.getElementById('name').value.trim().toLowerCase();
         const duesVal   = document.getElementById('dues_status').value;
 
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
+        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
+        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesName && matchesDues;
+        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
     });
 
     if (visibleRows.length === 0) {
-        showPopupMessage('No data to export. Try adjusting filters.');
+        alert('No data to export. Try adjusting filters.');
         return;
     }
 
@@ -446,13 +357,13 @@ function exportExcel() {
     })
     .catch(err => {
         console.error('Export failed:', err);
-        showPopupMessage('Export failed. Check console (F12) for details.');
+        alert('Export failed. Check console (F12) for details.');
     });
 }
 </script>
 
 <script>
-// Client-side filtering + pagination
+// Client-side filtering + pagination (unchanged)
 const rows = Array.from(document.querySelectorAll('.household-row'));
 const noResults = document.getElementById('no-results');
 const prevBtn = document.getElementById('prev-page');
@@ -462,6 +373,8 @@ const showingCount = document.getElementById('showing-count');
 const totalFilteredEl = document.getElementById('total-filtered');
 
 const statusFilter = document.getElementById('status');
+const blockFilter = document.getElementById('block');
+const lotFilter = document.getElementById('lot');
 const nameFilter = document.getElementById('name');
 const duesFilter = document.getElementById('dues_status');
 const clearBtn = document.getElementById('clear-filters');
@@ -471,15 +384,19 @@ const perPage = 10;
 
 function filterAndPaginate() {
     const statusVal = statusFilter.value;
+    const blockVal = blockFilter.value.trim().toLowerCase();
+    const lotVal = lotFilter.value.trim().toLowerCase();
     const nameVal = nameFilter.value.trim().toLowerCase();
     const duesVal = duesFilter.value;
 
     const visibleRows = rows.filter(row => {
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
+        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
+        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesName && matchesDues;
+        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
     });
 
     totalFilteredEl.textContent = visibleRows.length;
@@ -518,11 +435,15 @@ function filterAndPaginate() {
 
 // Instant filtering events
 statusFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
+blockFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
+lotFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
 nameFilter.addEventListener('input', () => { currentPage = 1; filterAndPaginate(); });
 duesFilter.addEventListener('change', () => { currentPage = 1; filterAndPaginate(); });
 
 clearBtn.addEventListener('click', () => {
     statusFilter.value = 'ALL';
+    blockFilter.value = '';
+    lotFilter.value = '';
     nameFilter.value = '';
     duesFilter.value = 'ALL';
     currentPage = 1;
@@ -536,15 +457,19 @@ prevBtn.addEventListener('click', () => {
 
 nextBtn.addEventListener('click', () => {
     const statusVal = statusFilter.value;
+    const blockVal = blockFilter.value.trim().toLowerCase();
+    const lotVal = lotFilter.value.trim().toLowerCase();
     const nameVal = nameFilter.value.trim().toLowerCase();
     const duesVal = duesFilter.value;
 
     const visibleRows = rows.filter(row => {
         const matchesStatus = statusVal === 'ALL' || row.dataset.homeStatus === statusVal;
+        const matchesBlock  = !blockVal || row.dataset.block.toLowerCase().includes(blockVal);
+        const matchesLot    = !lotVal   || row.dataset.lot.toLowerCase().includes(lotVal);
         const matchesName   = !nameVal  || row.dataset.search.includes(nameVal);
         const matchesDues   = duesVal === 'ALL' || row.dataset.duesStatus === duesVal;
 
-        return matchesStatus && matchesName && matchesDues;
+        return matchesStatus && matchesBlock && matchesLot && matchesName && matchesDues;
     });
 
     const totalPages = Math.ceil(visibleRows.length / perPage);
