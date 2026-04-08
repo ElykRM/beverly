@@ -87,7 +87,7 @@ $success_msg = $_GET['msg'] ?? '';
                                 data-middlename="<?= htmlspecialchars(strtolower($h['middle_name'] ?? '')) ?>"
                                 data-street="<?= htmlspecialchars(strtolower($h['street'] ?? '')) ?>"
                                 data-status="<?= htmlspecialchars($h['home_status']) ?>"
-                                onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
+                                onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>&referrer=habitants'">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <?= htmlspecialchars($h['block'] ?: '-') ?>
                                 </td>

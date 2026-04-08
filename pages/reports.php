@@ -281,7 +281,7 @@ foreach ($households as $h) {
                         data-dues-status="<?= $h['dues_status'] ?>"
                         data-block="<?= htmlspecialchars($h['block'] ?? '') ?>"
                         data-lot="<?= htmlspecialchars($h['lot'] ?? '') ?>"
-                        onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
+                        onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>&referrer=reports'">
                         <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                             <?= htmlspecialchars($h['block'] ?: '-') ?>
                         </td>

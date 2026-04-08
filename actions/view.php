@@ -46,12 +46,24 @@ if ($household['birthday']) {
 }
 
 $success_msg = $_GET['msg'] ?? '';
+$referrer = isset($_GET['referrer']) ? $_GET['referrer'] : 'habitants';
+
+// Map referrer to display text and link
+$backLinks = [
+    'habitants' => ['text' => 'Back to List', 'url' => '../pages/habitants.php'],
+    'dues'      => ['text' => 'Back to Dues', 'url' => '../pages/dues.php'],
+    'payment'   => ['text' => 'Back to Payments', 'url' => '../pages/payment.php'],
+    'reports'   => ['text' => 'Back to Reports', 'url' => '../pages/reports.php'],
+];
+
+$backLink = $backLinks[$referrer] ?? $backLinks['habitants'];
+echo "<!-- DEBUG: referrer=$referrer -->";
 ?>
 
 <div class="mb-10">
     <div class="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
         <h2 class="text-3xl font-bold text-green-800">Household Details</h2>
-        <a href="../pages/habitants.php" class="text-green-700 hover:text-green-900 font-medium">&larr; Back to List</a>
+        <a href="<?= htmlspecialchars($backLink['url']) ?>" class="text-green-700 hover:text-green-900 font-medium">&larr; <?= htmlspecialchars($backLink['text']) ?></a>
     </div>
 </div>
 

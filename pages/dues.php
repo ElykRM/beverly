@@ -185,7 +185,7 @@ foreach ($households as $h) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
-                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
+                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>&referrer=dues'">
                             <td class="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
