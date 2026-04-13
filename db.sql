@@ -138,6 +138,27 @@ WHERE p.deleted_at IS NULL
 -- INSERT INTO payments (household_id, or_no, period_year, period_month, amount, is_promo) 
 -- VALUES (1, 'OR-001', 2025, 1, 1000.00, 1);
 
+-- 5. Payment Exemptions (skip payment for approved years/months/ranges)
+-- Supports full year, single month, or range of months
+CREATE TABLE IF NOT EXISTS exemptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    household_id INT NOT NULL,
+    exemption_year INT NOT NULL COMMENT 'Start year',
+    exemption_month TINYINT UNSIGNED DEFAULT NULL COMMENT 'Start month (1-12); NULL = full year',
+    exemption_to_year INT DEFAULT NULL COMMENT 'End year; NULL = single month/year',
+    exemption_to_month TINYINT UNSIGNED DEFAULT NULL COMMENT 'End month (1-12); NULL = single month/year',
+    reason VARCHAR(255) DEFAULT NULL COMMENT 'e.g., "President approval", "Medical hardship"',
+    approved_by INT DEFAULT NULL COMMENT 'FK to admin user if added later',
+    approved_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_household_exemption (household_id, exemption_year, exemption_month, exemption_to_year, exemption_to_month),
+    INDEX idx_household (household_id),
+    INDEX idx_year (exemption_year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
 -- 5. Users (login accounts)
 CREATE TABLE IF NOT EXISTS users (
     id INT AUTO_INCREMENT PRIMARY KEY,
