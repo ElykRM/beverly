@@ -135,18 +135,33 @@ function writeDuesSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, ar
     $safeTitle = preg_replace('/[\\\\\/?*\[\]:]/', '', $title);
     $sheet->setTitle(substr($safeTitle, 0, 31));
 
-    $headers = ['Block', 'Lot', 'Household', 'Total Unpaid', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-    $sheet->fromArray($headers, null, 'A1');
-
-    $headerStyle = [
-        'font' => ['bold' => true, 'size' => 12],
+    // Row 1: Green header banner
+    $sheet->setCellValue('A1', 'HOUSEHOLD DUES');
+    $sheet->mergeCells('A1:P1');
+    $sheet->getRowDimension(1)->setRowHeight(28);
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 16, 'color' => ['argb' => 'FFFFFFFF']],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F8449']]
+    ]);
+
+    // Row 2: Spacer
+    $sheet->getRowDimension(2)->setRowHeight(6);
+
+    // Row 3: Column headers with green background
+    $headers = ['Block', 'Lot', 'Household', 'Total Unpaid', 'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    $sheet->fromArray($headers, null, 'A3');
+    $sheet->getRowDimension(3)->setRowHeight(20);
+    $headerStyle = [
+        'font' => ['bold' => true, 'size' => 12, 'color' => ['argb' => 'FFFFFFFF']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM]],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F8449']]
     ];
-    $sheet->getStyle('A1:P1')->applyFromArray($headerStyle);
+    $sheet->getStyle('A3:P3')->applyFromArray($headerStyle);
 
     $months = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
-    $rowNum = 2;
+    $rowNum = 4;
     foreach ($data as $row) {
         $sheet->setCellValue('A' . $rowNum, $row['block'] ?? '');
         $sheet->setCellValue('B' . $rowNum, $row['lot'] ?? '');
@@ -189,31 +204,43 @@ function writeDuesSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, ar
             }
         }
 
+        $sheet->getRowDimension($rowNum)->setRowHeight(18);
         $sheet->getStyle("D$rowNum:P$rowNum")->getNumberFormat()->setFormatCode('_(* #,##0.00_);_(* (#,##0.00);_(* "-"_);_(@_)');
         $rowNum++;
     }
 
-    $lastDataRow = $rowNum - 1;
-    if ($lastDataRow >= 2) {
+    // Row before total: Spacer
+    $sheet->getRowDimension($rowNum)->setRowHeight(4);
+    $rowNum++;
+
+    $lastDataRow = $rowNum - 2;
+    if ($lastDataRow >= 4) {
         $sheet->setCellValue('C' . $rowNum, 'TOTAL');
-        $sheet->setCellValue('D' . $rowNum, "=SUM(D2:D{$lastDataRow})");
+        $sheet->setCellValue('D' . $rowNum, "=SUM(D4:D{$lastDataRow})");
         foreach (range('E', 'P') as $col) {
-            $sheet->setCellValue($col . $rowNum, "=SUM({$col}2:{$col}{$lastDataRow})");
+            $sheet->setCellValue($col . $rowNum, "=SUM({$col}4:{$col}{$lastDataRow})");
         }
 
+        $sheet->getRowDimension($rowNum)->setRowHeight(20);
         $sheet->getStyle("A{$rowNum}:P{$rowNum}")->applyFromArray([
-            'font' => ['bold' => true],
-            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE0E0E0']],
-            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+            'font' => ['bold' => true, 'size' => 12],
+            'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+            'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD3D3D3']],
+            'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM]]
         ]);
         $sheet->getStyle("D{$rowNum}:P{$rowNum}")->getNumberFormat()->setFormatCode('_(* #,##0.00_);_(* (#,##0.00);_(* "-"_);_(@_)');
     }
 
-    foreach (range('A', 'P') as $col) {
-        $sheet->getColumnDimension($col)->setAutoSize(true);
+    // Set column widths
+    $sheet->getColumnDimension('A')->setWidth(12);
+    $sheet->getColumnDimension('B')->setWidth(10);
+    $sheet->getColumnDimension('C')->setWidth(20);
+    $sheet->getColumnDimension('D')->setWidth(14);
+    foreach (range('E', 'P') as $col) {
+        $sheet->getColumnDimension($col)->setWidth(12);
     }
 
-    $sheet->freezePane('A2');
+    $sheet->freezePane('A4');
 }
 
 function getPaidYears(PDO $pdo): array

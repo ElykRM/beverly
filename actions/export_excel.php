@@ -63,21 +63,33 @@ foreach ($statusOrder as $status) {
     // Set sheet title
     $sheet->setTitle($status);
 
-    // Headers
-    $headers = ['Block', 'Lot', 'Last Name', 'First Name', 'Middle Name', 'Street', 'Home Status'];
-    $sheet->fromArray($headers, null, 'A1');
-
-    // Style headers: bold, centered, borders
-    $headerStyle = [
-        'font' => ['bold' => true, 'size' => 12],
+    // Row 1: Green header banner
+    $sheet->setCellValue('A1', 'HOUSEHOLD REPORTS');
+    $sheet->mergeCells('A1:H1');
+    $sheet->getRowDimension(1)->setRowHeight(28);
+    $sheet->getStyle('A1')->applyFromArray([
+        'font' => ['bold' => true, 'size' => 16, 'color' => ['argb' => 'FFFFFFFF']],
         'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD3D3D3']]
-    ];
-    $sheet->getStyle('A1:G1')->applyFromArray($headerStyle);
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F8449']]
+    ]);
 
-    // Add data rows
-    $rowNum = 2;
+    // Row 2: Spacer
+    $sheet->getRowDimension(2)->setRowHeight(6);
+
+    // Row 3: Column headers with green background
+    $headers = ['Block', 'Lot', 'Last Name', 'First Name', 'Middle Name', 'Street', 'Home Status', 'Dues Status'];
+    $sheet->fromArray($headers, null, 'A3');
+    $sheet->getRowDimension(3)->setRowHeight(20);
+    $headerStyle = [
+        'font' => ['bold' => true, 'size' => 12, 'color' => ['argb' => 'FFFFFFFF']],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM]],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FF1F8449']]
+    ];
+    $sheet->getStyle('A3:H3')->applyFromArray($headerStyle);
+
+    // Add data rows (starting from row 4)
+    $rowNum = 4;
     foreach ($dataByStatus[$status] as $row) {
         $sheet->fromArray([
             $row['block'] ?? '',
@@ -86,32 +98,45 @@ foreach ($statusOrder as $status) {
             $row['first_name'] ?? '',
             $row['middle_name'] ?? '',
             $row['street'] ?? '',
-            $row['status'] ?? ''
+            $row['status'] ?? '',
+            $status
         ], null, 'A' . $rowNum);
 
+        $sheet->getRowDimension($rowNum)->setRowHeight(18);
         // Apply borders to this row
-        $sheet->getStyle("A{$rowNum}:G{$rowNum}")->applyFromArray([
+        $sheet->getStyle("A{$rowNum}:H{$rowNum}")->applyFromArray([
             'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
         ]);
         $rowNum++;
     }
 
-    // Add total row
-    $sheet->setCellValue('F' . $rowNum, 'TOTAL');
-    $sheet->setCellValue('G' . $rowNum, count($dataByStatus[$status]));
-    $sheet->getStyle("A{$rowNum}:G{$rowNum}")->applyFromArray([
-        'font' => ['bold' => true],
-        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFE0E0E0']],
-        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_THIN]]
+    // Row before total: Spacer
+    $sheet->getRowDimension($rowNum)->setRowHeight(4);
+    $rowNum++;
+
+    // Add total row with gray background and medium borders
+    $sheet->setCellValue('G' . $rowNum, 'TOTAL');
+    $sheet->setCellValue('H' . $rowNum, count($dataByStatus[$status]));
+    $sheet->getRowDimension($rowNum)->setRowHeight(20);
+    $sheet->getStyle("A{$rowNum}:H{$rowNum}")->applyFromArray([
+        'font' => ['bold' => true, 'size' => 12],
+        'alignment' => ['horizontal' => Alignment::HORIZONTAL_CENTER, 'vertical' => Alignment::VERTICAL_CENTER],
+        'fill' => ['fillType' => Fill::FILL_SOLID, 'startColor' => ['argb' => 'FFD3D3D3']],
+        'borders' => ['allBorders' => ['borderStyle' => Border::BORDER_MEDIUM]]
     ]);
 
     // Freeze header row
-    $sheet->freezePane('A2');
+    $sheet->freezePane('A4');
 
-    // Auto-size columns
-    foreach (range('A', 'G') as $col) {
-        $sheet->getColumnDimension($col)->setAutoSize(true);
-    }
+    // Set column widths
+    $sheet->getColumnDimension('A')->setWidth(12);
+    $sheet->getColumnDimension('B')->setWidth(10);
+    $sheet->getColumnDimension('C')->setWidth(18);
+    $sheet->getColumnDimension('D')->setWidth(16);
+    $sheet->getColumnDimension('E')->setWidth(16);
+    $sheet->getColumnDimension('F')->setWidth(14);
+    $sheet->getColumnDimension('G')->setWidth(20);
+    $sheet->getColumnDimension('H')->setWidth(14);
 
     $sheetIndex++;
 }
