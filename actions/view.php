@@ -286,11 +286,11 @@ echo "<!-- DEBUG: referrer=$referrer -->";
 </div>
 
 <div class="mt-8 flex flex-wrap justify-center gap-4">
-    <a href="../actions/export_household_pdf.php?id=<?= $id ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+    <a href="../actions/export_household_pdf.php?id=<?= $id ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-5 rounded-lg shadow transition">
         Download PDF
     </a>
     
-    <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+    <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-5 rounded-lg shadow transition">
         View Dues History
     </a>
     <?php if (is_admin()): ?>

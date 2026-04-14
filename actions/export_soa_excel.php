@@ -210,7 +210,7 @@ for ($y = $startYear; $y <= $currentYear; $y++) {
             'isExempted' => $isExempted,
             'isPromo' => $isPromo,
             'isPromoMonth' => $isPromoMonth,
-            'status' => $isExempted ? 'Exempted' : ($paymentFound ? 'Paid' : 'Unpaid')
+            'status' => $isExempted ? 'Unsettled' : ($paymentFound ? 'Paid' : 'Unpaid')
         ];
     }
 }
