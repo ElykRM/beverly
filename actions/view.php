@@ -203,6 +203,14 @@ echo "<!-- DEBUG: referrer=$referrer -->";
         <?php if (empty($payments)): ?>
             <p class="text-gray-500 italic">No payments recorded yet.</p>
         <?php else: ?>
+            <!-- Year Filter -->
+            <div class="mb-6 flex items-center gap-4">
+                <label for="payment-year-filter" class="text-sm font-medium text-gray-700">Filter by Year:</label>
+                <select id="payment-year-filter" class="px-4 py-2 border border-gray-300 rounded-lg bg-white text-gray-900 hover:border-gray-400 focus:outline-none focus:ring-2 focus:ring-green-600">
+                    <option value="">All Years</option>
+                </select>
+            </div>
+
             <div class="overflow-x-auto">
                 <table id="payment-history-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
@@ -258,9 +266,14 @@ echo "<!-- DEBUG: referrer=$referrer -->";
                     <div class="text-sm text-gray-600">
                         Showing <span id="payment-showing-count">0</span> of <span id="payment-total-count"><?= count($payments) ?></span> payments
                     </div>
-                    <button onclick="exportPaymentHistoryExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
-                        Export to Excel
-                    </button>
+                    <div class="flex gap-2">
+                        <button onclick="exportPaymentHistoryExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
+                            Export History to Excel
+                        </button>
+                        <button onclick="exportSOAExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
+                            Export SOA to Excel
+                        </button>
+                    </div>
                     <div class="flex gap-2 items-center">
                         <button id="payment-prev" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
                         <div id="payment-page-numbers" class="flex gap-2"></div>
@@ -276,18 +289,20 @@ echo "<!-- DEBUG: referrer=$referrer -->";
     <a href="../actions/export_household_pdf.php?id=<?= $id ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         Download PDF
     </a>
-    <?php if (is_admin()): ?>
-    <a href="../actions/edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-        Edit Household
-    </a>
-    <a href="../pages/payment.php?household_id=<?= $id ?>" class="inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-        Log Payment
-    </a>
-    <?php endif; ?>
+    
     <a href="../pages/dues.php?household_id=<?= $id ?>" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
         View Dues History
     </a>
     <?php if (is_admin()): ?>
+    <a href="../pages/payment.php?household_id=<?= $id ?>" class="inline-block bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+        Log Payment
+    </a>
+    <?php endif; ?>
+    <?php if (is_admin()): ?>
+    <a href="../actions/edit.php?id=<?= $id ?>" class="inline-block bg-yellow-600 hover:bg-yellow-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
+        Edit Household
+    </a>
+
     <form action="../actions/delete.php" method="POST" data-confirm-message="Are you sure you want to delete this household record? This action cannot be undone." class="inline-block">
         <input type="hidden" name="id" value="<?= $id ?>">
         <button type="submit" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
@@ -363,15 +378,53 @@ document.querySelectorAll('form[action*="delete"]').forEach(form => {
 });
 
 // Payment History Pagination (5 per page)
-const paymentRows = Array.from(document.querySelectorAll('.payment-row'));
+const paymentRowsAll = Array.from(document.querySelectorAll('.payment-row'));
+const paymentYearFilter = document.getElementById('payment-year-filter');
 const paymentPrev = document.getElementById('payment-prev');
 const paymentNext = document.getElementById('payment-next');
 const paymentPageNumbers = document.getElementById('payment-page-numbers');
 const paymentShowingCount = document.getElementById('payment-showing-count');
 
-if (paymentRows.length > 0) {
+if (paymentRowsAll.length > 0) {
+    // Extract unique years from payment data
+    const years = new Set();
+    paymentRowsAll.forEach(row => {
+        const period = row.querySelector('td:nth-child(2)').textContent.trim();
+        const yearMatch = period.match(/(\d{4})/);
+        if (yearMatch) {
+            years.add(parseInt(yearMatch[1]));
+        }
+    });
+
+    // Populate year filter dropdown
+    const sortedYears = Array.from(years).sort((a, b) => b - a);
+    sortedYears.forEach(year => {
+        const option = document.createElement('option');
+        option.value = year;
+        option.textContent = year;
+        paymentYearFilter.appendChild(option);
+    });
+
     let paymentCurrentPage = 1;
     const paymentPerPage = 5;
+    let paymentRows = paymentRowsAll; // Filtered rows
+
+    function filterAndPaginate() {
+        const selectedYear = paymentYearFilter.value;
+
+        // Filter rows based on selected year
+        if (selectedYear) {
+            paymentRows = paymentRowsAll.filter(row => {
+                const period = row.querySelector('td:nth-child(2)').textContent.trim();
+                return period.includes(selectedYear);
+            });
+        } else {
+            paymentRows = [...paymentRowsAll];
+        }
+
+        paymentCurrentPage = 1;
+        paginatePayments();
+    }
 
     function paginatePayments() {
         const totalPages = Math.ceil(paymentRows.length / paymentPerPage) || 1;
@@ -381,10 +434,10 @@ if (paymentRows.length > 0) {
         const end = start + paymentPerPage;
         const pageRows = paymentRows.slice(start, end);
 
-        paymentRows.forEach(r => r.style.display = 'none');
+        paymentRowsAll.forEach(r => r.style.display = 'none');
         pageRows.forEach(row => row.style.display = '');
 
-        paymentShowingCount.textContent = Math.min(paymentRows.length - start, paymentPerPage);
+        paymentShowingCount.textContent = pageRows.length;
 
         paymentPrev.disabled = paymentCurrentPage <= 1;
         paymentNext.disabled = paymentCurrentPage >= totalPages;
@@ -404,6 +457,8 @@ if (paymentRows.length > 0) {
             paymentPageNumbers.appendChild(btn);
         }
     }
+
+    paymentYearFilter.addEventListener('change', filterAndPaginate);
 
     paymentPrev.addEventListener('click', () => {
         if (paymentCurrentPage > 1) {
@@ -427,11 +482,12 @@ if (paymentRows.length > 0) {
 function exportPaymentHistoryExcel() {
     const householdId = <?= $id ?>;
     const householdName = '<?= addslashes($household['last_name'] . ', ' . $household['first_name']) ?>';
+    const selectedYear = document.getElementById('payment-year-filter').value;
 
     fetch('../actions/export_payment_history.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ household_id: householdId, household_name: householdName })
+        body: JSON.stringify({ household_id: householdId, household_name: householdName, year: selectedYear })
     })
     .then(response => {
         if (!response.ok) throw new Error('Export failed');
@@ -441,7 +497,8 @@ function exportPaymentHistoryExcel() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `Payment_History_${householdName.replace(/,/g, '')}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        const yearSuffix = selectedYear ? `_${selectedYear}` : '';
+        a.download = `Payment_History_${householdName.replace(/,/g, '')}${yearSuffix}_${new Date().toISOString().split('T')[0]}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -450,6 +507,38 @@ function exportPaymentHistoryExcel() {
     .catch(err => {
         console.error('Export error:', err);
         alert('Failed to export payment history');
+    });
+}
+
+// Export Statement of Account
+function exportSOAExcel() {
+    const householdId = <?= $id ?>;
+    const householdName = '<?= addslashes($household['last_name'] . ', ' . $household['first_name']) ?>';
+    const selectedYear = document.getElementById('payment-year-filter').value;
+
+    fetch('../actions/export_soa_excel.php', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ household_id: householdId, household_name: householdName, year: selectedYear })
+    })
+    .then(response => {
+        if (!response.ok) throw new Error('Export failed');
+        return response.blob();
+    })
+    .then(blob => {
+        const url = window.URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        const yearSuffix = selectedYear ? `_${selectedYear}` : '';
+        a.download = `SOA_${householdName.replace(/,/g, '')}${yearSuffix}_${new Date().toISOString().split('T')[0]}.xlsx`;
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        window.URL.revokeObjectURL(url);
+    })
+    .catch(err => {
+        console.error('Export error:', err);
+        alert('Failed to export SOA');
     });
 }
 </script>

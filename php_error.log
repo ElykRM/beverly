@@ -1,0 +1,8 @@
+[13-Apr-2026 08:00:51 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined method PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::setCellValueByColumnAndRow() in C:\Users\BSD-QA\Desktop\XAMPP\htdocs\beverly\actions\export_soa_excel.php:194
+Stack trace:
+#0 {main}
+  thrown in C:\Users\BSD-QA\Desktop\XAMPP\htdocs\beverly\actions\export_soa_excel.php on line 194
+[13-Apr-2026 08:00:58 Europe/Berlin] PHP Fatal error:  Uncaught Error: Call to undefined method PhpOffice\PhpSpreadsheet\Worksheet\Worksheet::setCellValueByColumnAndRow() in C:\Users\BSD-QA\Desktop\XAMPP\htdocs\beverly\actions\export_soa_excel.php:194
+Stack trace:
+#0 {main}
+  thrown in C:\Users\BSD-QA\Desktop\XAMPP\htdocs\beverly\actions\export_soa_excel.php on line 194
