@@ -254,23 +254,95 @@ $spreadsheet = new Spreadsheet();
 $sheet = $spreadsheet->getActiveSheet();
 $sheet->setTitle('Statement of Account');
 
-// Household info header
-$sheet->setCellValue('A1', $household['last_name'] . ', ' . $household['first_name']);
-$sheet->mergeCells('A1:F1');
-$sheet->getStyle('A1')->getFont()->setBold(true)->setSize(14);
+// Define border and styling
+$thinBorder = [
+    'borderStyle' => Border::BORDER_THIN,
+    'color' => ['rgb' => '000000'],
+];
+$thickBorder = [
+    'borderStyle' => Border::BORDER_MEDIUM,
+    'color' => ['rgb' => '1F8449'],
+];
 
+// Title row
+$sheet->setCellValue('A1', 'STATEMENT OF ACCOUNT');
+$sheet->mergeCells('A1:F1');
+$sheet->getStyle('A1')->getFont()->setBold(true)->setSize(16)->getColor()->setRGB('FFFFFF');
+$sheet->getStyle('A1')->applyFromArray([
+    'fill' => [
+        'fillType' => Fill::FILL_SOLID,
+        'color' => ['rgb' => '1F8449'],
+    ],
+    'alignment' => [
+        'horizontal' => Alignment::HORIZONTAL_CENTER,
+        'vertical' => Alignment::VERTICAL_CENTER,
+    ],
+    'borders' => [
+        'allBorders' => $thickBorder,
+    ],
+]);
+$sheet->getRowDimension(1)->setRowHeight(28);
+
+// Blank row
+$sheet->getRowDimension(2)->setRowHeight(6);
+
+// Left side: Household info labels/values
+$sheet->setCellValue('A3', 'Name:');
+$sheet->getStyle('A3')->getFont()->setBold(true);
+$sheet->setCellValue('B3', $household['last_name'] . ', ' . $household['first_name']);
+$sheet->mergeCells('B3:C3');
+
+$sheet->setCellValue('A4', 'Address:');
+$sheet->getStyle('A4')->getFont()->setBold(true);
 $address = trim((($household['block'] ? 'Block ' . $household['block'] : '') . ' ' . ($household['lot'] ? 'Lot ' . $household['lot'] : '')));
 if ($household['street']) $address .= ' ' . $household['street'];
-$sheet->setCellValue('A2', trim($address) ?: 'No address');
-$sheet->mergeCells('A2:F2');
+$sheet->setCellValue('B4', trim($address) ?: 'No address');
+$sheet->mergeCells('B4:C4');
 
-$sheet->setCellValue('A3', $household['subdivision']);
-$sheet->mergeCells('A3:F3');
+$sheet->setCellValue('A5', 'Subdivision:');
+$sheet->getStyle('A5')->getFont()->setBold(true);
+$sheet->setCellValue('B5', $household['subdivision']);
+$sheet->mergeCells('B5:D5');
 
-$sheet->setCellValue('A5', 'STATEMENT OF ACCOUNT');
-$sheet->mergeCells('A5:F5');
-$sheet->getStyle('A5')->getFont()->setBold(true)->setSize(12);
-$sheet->getStyle('A5')->getAlignment()->setHorizontal(Alignment::HORIZONTAL_CENTER);
+// Right side: Statement info
+$sheet->setCellValue('E3', 'Statement Date:');
+$sheet->getStyle('E3')->getFont()->setBold(true);
+$sheet->setCellValue('F3', date('M d, Y'));
+
+$sheet->setCellValue('E4', 'Status:');
+$sheet->getStyle('E4')->getFont()->setBold(true);
+$sheet->setCellValue('F4', $household['home_status']);
+
+$sheet->setCellValue('E5', 'Period:');
+$sheet->getStyle('E5')->getFont()->setBold(true);
+$sheet->setCellValue('F5', 'All Records');
+
+// Apply borders to form section
+$sheet->getStyle('A3:D5')->applyFromArray([
+    'borders' => [
+        'allBorders' => $thinBorder,
+    ],
+    'alignment' => [
+        'vertical' => Alignment::VERTICAL_CENTER,
+        'wrapText' => true,
+    ],
+]);
+
+$sheet->getStyle('E3:F5')->applyFromArray([
+    'borders' => [
+        'allBorders' => $thinBorder,
+    ],
+    'alignment' => [
+        'vertical' => Alignment::VERTICAL_CENTER,
+    ],
+]);
+
+$sheet->getRowDimension(3)->setRowHeight(18);
+$sheet->getRowDimension(4)->setRowHeight(18);
+$sheet->getRowDimension(5)->setRowHeight(28);
+
+// Blank row between form header and table
+$sheet->getRowDimension(6)->setRowHeight(4);
 
 // Column headers
 $headers = ['OR No.', 'Period', 'Amount', 'Date Paid', 'Remarks', 'Status'];
@@ -296,6 +368,7 @@ $headerStyle = [
 ];
 
 $row = 7;
+$sheet->getRowDimension(7)->setRowHeight(20);
 $colLetters = ['A', 'B', 'C', 'D', 'E', 'F'];
 foreach ($headers as $col => $header) {
     $sheet->setCellValue($colLetters[$col] . $row, $header);
@@ -352,6 +425,7 @@ foreach ($monthData as $month) {
     }
     
     $sheet->getStyle('A' . $row . ':F' . $row)->applyFromArray($rowStyle);
+    $sheet->getRowDimension($row)->setRowHeight(18);
     $row++;
 }
 
@@ -372,11 +446,18 @@ if (!$selectedYear && count($monthData) > 0) {
     
     // Blank row
     $row++;
+    $row++;
     
     // Yearly summary header
-    $row++;
     $sheet->setCellValue('E' . $row, 'YEARLY SUMMARY:');
-    $sheet->getStyle('E' . $row)->getFont()->setBold(true);
+    $sheet->getStyle('E' . $row)->getFont()->setBold(true)->setSize(11);
+    $sheet->getStyle('E' . $row)->applyFromArray([
+        'fill' => [
+            'fillType' => Fill::FILL_SOLID,
+            'color' => ['rgb' => 'F0F0F0'],
+        ],
+    ]);
+    $sheet->getRowDimension($row)->setRowHeight(18);
     $row++;
     
     // Yearly totals
@@ -384,6 +465,9 @@ if (!$selectedYear && count($monthData) > 0) {
         $sheet->setCellValue('E' . $row, 'Year ' . $year . ':');
         $sheet->setCellValue('F' . $row, '₱' . number_format($yearTotal, 2));
         $sheet->getStyle('E' . $row . ':F' . $row)->applyFromArray([
+            'alignment' => [
+                'horizontal' => Alignment::HORIZONTAL_RIGHT,
+            ],
             'borders' => [
                 'allBorders' => [
                     'borderStyle' => Border::BORDER_THIN,
@@ -391,27 +475,35 @@ if (!$selectedYear && count($monthData) > 0) {
                 ],
             ],
         ]);
+        $sheet->getRowDimension($row)->setRowHeight(16);
         $row++;
     }
 }
 
+// Blank row before totals
+$row++;
+
 // Total row
-$totalRow = $row + 1;
+$totalRow = $row;
 $sheet->setCellValue('E' . $totalRow, 'TOTAL PAID:');
 $sheet->setCellValue('F' . $totalRow, '₱' . number_format($totalPaid, 2));
-$sheet->getStyle('E' . $totalRow . ':F' . $totalRow)->getFont()->setBold(true);
+$sheet->getStyle('E' . $totalRow . ':F' . $totalRow)->getFont()->setBold(true)->setSize(11);
 $sheet->getStyle('E' . $totalRow . ':F' . $totalRow)->applyFromArray([
     'fill' => [
         'fillType' => Fill::FILL_SOLID,
-        'color' => ['rgb' => 'E0E0E0'],
+        'color' => ['rgb' => 'D3D3D3'],
+    ],
+    'alignment' => [
+        'horizontal' => Alignment::HORIZONTAL_RIGHT,
     ],
     'borders' => [
         'allBorders' => [
-            'borderStyle' => Border::BORDER_THIN,
-            'color' => ['rgb' => 'CCCCCC'],
+            'borderStyle' => Border::BORDER_MEDIUM,
+            'color' => ['rgb' => '666666'],
         ],
     ],
 ]);
+$sheet->getRowDimension($totalRow)->setRowHeight(20);
 
 // Calculate outstanding balance (using accurate totals)
 $outstandingBalance = $totalExpected - $totalPaid;
@@ -420,13 +512,15 @@ $outstandingBalance = $totalExpected - $totalPaid;
 $balanceRow = $totalRow + 1;
 $sheet->setCellValue('E' . $balanceRow, 'OUTSTANDING BALANCE:');
 $sheet->setCellValue('F' . $balanceRow, '₱' . number_format($outstandingBalance, 2));
-$sheet->getStyle('E' . $balanceRow . ':F' . $balanceRow)->getFont()->setBold(true);
+$sheet->getStyle('E' . $balanceRow . ':F' . $balanceRow)->getFont()->setBold(true)->setSize(12);
 
 // Color code balance row
 if ($outstandingBalance > 0) {
-    $balanceColor = 'FF6B6B'; // Red for unpaid
+    $balanceColor = 'D9534F'; // Red for unpaid
+    $fontColor = 'FFFFFF';
 } else {
-    $balanceColor = '51CF66'; // Green for paid up
+    $balanceColor = '5CB85C'; // Green for paid up
+    $fontColor = 'FFFFFF';
 }
 
 $sheet->getStyle('E' . $balanceRow . ':F' . $balanceRow)->applyFromArray([
@@ -435,23 +529,35 @@ $sheet->getStyle('E' . $balanceRow . ':F' . $balanceRow)->applyFromArray([
         'color' => ['rgb' => $balanceColor],
     ],
     'font' => [
-        'color' => ['rgb' => 'FFFFFF'],
+        'bold' => true,
+        'color' => ['rgb' => $fontColor],
+    ],
+    'alignment' => [
+        'horizontal' => Alignment::HORIZONTAL_RIGHT,
     ],
     'borders' => [
         'allBorders' => [
-            'borderStyle' => Border::BORDER_THIN,
-            'color' => ['rgb' => 'CCCCCC'],
+            'borderStyle' => Border::BORDER_MEDIUM,
+            'color' => ['rgb' => '333333'],
         ],
     ],
 ]);
+$sheet->getRowDimension($balanceRow)->setRowHeight(22);
 
-// Adjust column widths
+// Adjust column widths for better spacing
 $sheet->getColumnDimension('A')->setWidth(12);
-$sheet->getColumnDimension('B')->setWidth(16);
-$sheet->getColumnDimension('C')->setWidth(14);
-$sheet->getColumnDimension('D')->setWidth(18);
-$sheet->getColumnDimension('E')->setWidth(20);
-$sheet->getColumnDimension('F')->setWidth(12);
+$sheet->getColumnDimension('B')->setWidth(18);
+$sheet->getColumnDimension('C')->setWidth(16);
+$sheet->getColumnDimension('D')->setWidth(22);
+$sheet->getColumnDimension('E')->setWidth(28);
+$sheet->getColumnDimension('F')->setWidth(16);
+
+// Set auto-fit for text wrapping where needed
+$sheet->getStyle('B3:C5')->getAlignment()->setWrapText(true);
+$sheet->getStyle('B4')->getAlignment()->setWrapText(true);
+
+// Set default row height
+$sheet->getDefaultRowDimension()->setRowHeight(17);
 
 // Output
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
