@@ -267,12 +267,14 @@ echo "<!-- DEBUG: referrer=$referrer -->";
                         Showing <span id="payment-showing-count">0</span> of <span id="payment-total-count"><?= count($payments) ?></span> payments
                     </div>
                     <div class="flex gap-2">
+                        <?php if (is_admin()): ?>
                         <button onclick="exportPaymentHistoryExcel()" class="bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
                             Export History to Excel
                         </button>
                         <button onclick="exportSOAExcel()" class="bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg shadow transition text-sm">
                             Export SOA to Excel
                         </button>
+                        <?php endif; ?>
                     </div>
                     <div class="flex gap-2 items-center">
                         <button id="payment-prev" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg disabled:opacity-50 disabled:cursor-not-allowed" disabled>Previous</button>
@@ -285,7 +287,7 @@ echo "<!-- DEBUG: referrer=$referrer -->";
     </div>
 </div>
 
-<div class="mt-8 flex flex-wrap justify-center gap-4">
+<div class="mt-8 flex flex-nowrap justify-center items-center gap-4">
     <a href="../actions/export_household_pdf.php?id=<?= $id ?>" class="inline-block bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-5 rounded-lg shadow transition">
         Download PDF
     </a>
