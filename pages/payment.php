@@ -443,7 +443,7 @@ function updateExemptionDisplay(householdId) {
         currentExemptionsDiv.innerHTML = exemptions.map((ex, idx) => `
             <div class="flex items-center justify-between bg-blue-50 p-3 rounded border border-blue-200 text-sm">
                 <span class="text-gray-800">${formatExemptionLabel(ex)} ${ex.reason ? `<span class="text-gray-500">- ${ex.reason}</span>` : ''} ${idx === currentExemptionIndex ? '<span class="ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">ACTIVE</span>' : ''}</span>
-                <button type="button" class="text-red-600 hover:text-red-800 font-medium text-sm data-index="${idx}">
+                <button type="button" class="delete-exemption-btn text-red-600 hover:text-red-800 font-medium text-sm" data-index="${idx}">
                     Remove
                 </button>
             </div>

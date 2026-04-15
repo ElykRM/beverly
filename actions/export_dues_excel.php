@@ -243,41 +243,6 @@ function writeDuesSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, ar
     $sheet->freezePane('A4');
 }
 
-function getPaidYears(PDO $pdo): array
-{
-    $stmt = $pdo->query("\n        SELECT period_year, period_to_year, amount\n        FROM payments\n    ");
-    $payments = $stmt->fetchAll();
-
-    $years = [];
-    foreach ($payments as $p) {
-        $amount = isset($p['amount']) ? (float)$p['amount'] : 0.0;
-        if ($amount <= 0) {
-            continue;
-        }
-
-        $startYear = isset($p['period_year']) ? (int)$p['period_year'] : 0;
-        $endYear = isset($p['period_to_year']) && $p['period_to_year'] !== null
-            ? (int)$p['period_to_year']
-            : $startYear;
-
-        if ($startYear <= 0 || $endYear <= 0) {
-            continue;
-        }
-
-        if ($endYear < $startYear) {
-            [$startYear, $endYear] = [$endYear, $startYear];
-        }
-
-        for ($y = $startYear; $y <= $endYear; $y++) {
-            $years[$y] = true;
-        }
-    }
-
-    $yearList = array_keys($years);
-    sort($yearList, SORT_NUMERIC);
-    return $yearList;
-}
-
 $spreadsheet = new Spreadsheet();
 $baseYear = isset($input['year']) ? (int)$input['year'] : (int)date('Y');
 
@@ -298,23 +263,11 @@ if (isset($input['data']) && !isset($input['year'])) {
     $sheet = $spreadsheet->getActiveSheet();
     writeDuesSheet($sheet, $data, 'Dues Overview');
 } else {
-    $paidYears = getPaidYears($pdo);
-    if (empty($paidYears)) {
-        // Fallback: keep export usable even if no paid records exist yet.
-        $paidYears = [$baseYear];
-    }
-
-    foreach ($paidYears as $index => $year) {
-        if ($index === 0) {
-            $sheet = $spreadsheet->getActiveSheet();
-        } else {
-            $sheet = $spreadsheet->createSheet();
-        }
-
-        $sheetTitle = 'Year ' . $year;
-        $sheetData = buildDuesData($pdo, (int)$year);
-        writeDuesSheet($sheet, $sheetData, $sheetTitle);
-    }
+    // Export only the selected year, not all years with payments
+    $sheet = $spreadsheet->getActiveSheet();
+    $sheetTitle = 'Year ' . $baseYear;
+    $sheetData = buildDuesData($pdo, (int)$baseYear);
+    writeDuesSheet($sheet, $sheetData, $sheetTitle);
 
     $spreadsheet->setActiveSheetIndex(0);
 }
