@@ -6,8 +6,9 @@
 -- Features: Move-in/move-out dates, payment history, duplicate payment validation
 -- Run this in phpMyAdmin / MySQL Workbench after backing up existing data
 -- =============================================================================
--- NOTE: For Infinity Free, just paste this entire SQL into phpMyAdmin's SQL tab and run it.
--- =============================================================================
+
+-- Note: On InfinityFree, the database 'if0_41510481_beverly' is pre-created
+-- No CREATE DATABASE needed - just USE the existing database
 
 USE if0_41510481_beverly;
 
@@ -91,9 +92,44 @@ CREATE TABLE payments (
     INDEX idx_deleted (deleted_at)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
--- NOTE: VIEW REMOVED - Infinity Free doesn't allow CREATE VIEW permissions
--- If needed, you can replicate this query logic in your PHP code instead
--- Original view would expand range payments into individual months for reporting
+-- Optional: View that expands range payments into individual months
+-- NOTE: InfinityFree does not allow VIEW creation with this user account
+-- Useful for detailed reporting / checking specific months (local dev only)
+-- CREATE OR REPLACE VIEW payment_months AS
+-- SELECT 
+--     p.id AS payment_id,
+--     p.household_id,
+--     p.or_no,
+--     p.amount,
+--     p.is_promo,
+--     p.paid_at,
+--     p.remarks,
+--     y.year_num AS period_year,
+--     m.month_num AS period_month
+-- FROM payments p
+-- CROSS JOIN (
+--     SELECT 1 AS month_num UNION SELECT 2 UNION SELECT 3 UNION SELECT 4 
+--     UNION SELECT 5 UNION SELECT 6 UNION SELECT 7 UNION SELECT 8 
+--     UNION SELECT 9 UNION SELECT 10 UNION SELECT 11 UNION SELECT 12
+-- ) m
+-- CROSS JOIN (
+--     SELECT period_year AS year_num FROM payments WHERE period_to_year IS NULL
+--     UNION
+--     SELECT y FROM (
+--         SELECT period_year AS y FROM payments WHERE period_to_year IS NOT NULL
+--         UNION SELECT period_to_year FROM payments WHERE period_to_year IS NOT NULL
+--     ) years
+-- ) y
+-- WHERE p.deleted_at IS NULL
+--   AND (
+--       (p.period_to_year IS NULL AND m.month_num = p.period_month)
+--       OR
+--       (p.period_to_year IS NOT NULL 
+--        AND y.year_num BETWEEN p.period_year AND p.period_to_year
+--        AND (y.year_num > p.period_year OR m.month_num >= p.period_month)
+--        AND (y.year_num < p.period_to_year OR m.month_num <= p.period_to_month)
+--       )
+--   );
 
 -- Optional: Add some test data (uncomment if needed for development)
 -- INSERT INTO households (last_name, first_name, home_status, block, lot, street) 
@@ -101,6 +137,27 @@ CREATE TABLE payments (
 
 -- INSERT INTO payments (household_id, or_no, period_year, period_month, amount, is_promo) 
 -- VALUES (1, 'OR-001', 2025, 1, 1000.00, 1);
+
+-- 5. Payment Exemptions (skip payment for approved years/months/ranges)
+-- Supports full year, single month, or range of months
+CREATE TABLE IF NOT EXISTS exemptions (
+    id INT AUTO_INCREMENT PRIMARY KEY,
+    household_id INT NOT NULL,
+    exemption_year INT NOT NULL COMMENT 'Start year',
+    exemption_month TINYINT UNSIGNED DEFAULT NULL COMMENT 'Start month (1-12); NULL = full year',
+    exemption_to_year INT DEFAULT NULL COMMENT 'End year; NULL = single month/year',
+    exemption_to_month TINYINT UNSIGNED DEFAULT NULL COMMENT 'End month (1-12); NULL = single month/year',
+    reason VARCHAR(255) DEFAULT NULL COMMENT 'e.g., "President approval", "Medical hardship"',
+    approved_by INT DEFAULT NULL COMMENT 'FK to admin user if added later',
+    approved_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    notes TEXT DEFAULT NULL,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+    FOREIGN KEY (household_id) REFERENCES households(id) ON DELETE CASCADE,
+    UNIQUE KEY unique_household_exemption (household_id, exemption_year, exemption_month, exemption_to_year, exemption_to_month),
+    INDEX idx_household (household_id),
+    INDEX idx_year (exemption_year)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
 
 -- 5. Users (login accounts)
 CREATE TABLE IF NOT EXISTS users (

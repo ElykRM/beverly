@@ -2,6 +2,18 @@
 include '../includes/auth.php';
 include '../db.php';
 
+$isAjax = (
+    (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ||
+    (isset($_SERVER['HTTP_ACCEPT']) && strpos((string)$_SERVER['HTTP_ACCEPT'], 'application/json') !== false)
+);
+
+function respondJson(int $statusCode, array $payload): void {
+    http_response_code($statusCode);
+    header('Content-Type: application/json');
+    echo json_encode($payload);
+    exit;
+}
+
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     header('Location: ../pages/payment.php');
     exit;
@@ -9,6 +21,12 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $pdo->beginTransaction();
+
+    $monthName = [
+        1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
+        5 => 'May', 6 => 'June', 7 => 'July', 8 => 'August',
+        9 => 'September', 10 => 'October', 11 => 'November', 12 => 'December'
+    ];
 
     $household_id = (int)($_POST['household_id'] ?? 0);
     if ($household_id <= 0) {
@@ -20,6 +38,7 @@ try {
     $amount  = filter_var($amount_raw, FILTER_VALIDATE_FLOAT);
     $remarks = trim($_POST['remarks'] ?? '');
     $is_promo = isset($_POST['is_promo']) && $_POST['is_promo'] == '1' ? 1 : 0;
+    $exemption_year = isset($_POST['exemption_year']) && $_POST['exemption_year'] !== '' ? (int)$_POST['exemption_year'] : null;
 
     if ($or_no === '') {
         throw new Exception("OR number is required.");
@@ -76,6 +95,224 @@ try {
         $amount           = 1000.00; // enforce promo price
     }
 
+    // Enforce oldest-first payment: no paying later months while earlier due months are unpaid.
+    $today = new DateTime();
+    $currentDueYear = (int)$today->format('Y');
+    $currentDueMonth = (int)$today->format('n');
+
+    $requestedStartIndex = ($period_year * 12) + $period_month;
+
+    $paidStmt = $pdo->prepare("\n        SELECT period_year, period_month, period_to_year, period_to_month\n        FROM payments\n        WHERE household_id = ? AND deleted_at IS NULL\n    ");
+    $paidStmt->execute([$household_id]);
+    $existingPayments = $paidStmt->fetchAll();
+
+    // Fetch exemptions for this household
+    $exemptStmt = $pdo->prepare("\n        SELECT exemption_year, exemption_month, exemption_to_year, exemption_to_month\n        FROM exemptions\n        WHERE household_id = ?\n    ");
+    $exemptStmt->execute([$household_id]);
+    $exemptions = $exemptStmt->fetchAll();
+
+    $minPaidYear = null;
+    foreach ($existingPayments as $p) {
+        $py = (int)$p['period_year'];
+        if ($py > 0 && ($minPaidYear === null || $py < $minPaidYear)) {
+            $minPaidYear = $py;
+        }
+    }
+
+    // Start from January of the earliest relevant year.
+    $dueStartYear = $minPaidYear !== null ? min($minPaidYear, $period_year) : $period_year;
+    $dueStartMonth = 1;
+
+    $covered = [];
+    foreach ($existingPayments as $p) {
+        $startY = (int)$p['period_year'];
+        $startM = (int)$p['period_month'];
+        $endY = $p['period_to_year'] !== null ? (int)$p['period_to_year'] : $startY;
+        $endM = $p['period_to_month'] !== null ? (int)$p['period_to_month'] : $startM;
+
+        if ($endY < $startY || ($endY === $startY && $endM < $startM)) {
+            continue;
+        }
+
+        for ($y = $startY; $y <= $endY; $y++) {
+            $mFrom = ($y === $startY) ? $startM : 1;
+            $mTo = ($y === $endY) ? $endM : 12;
+            for ($m = $mFrom; $m <= $mTo; $m++) {
+                $covered[($y * 100) + $m] = true;
+            }
+        }
+    }
+
+    $earliestUnpaidYear = null;
+    $earliestUnpaidMonth = null;
+    for ($y = $dueStartYear; $y <= $currentDueYear; $y++) {
+        // Check if this year is exempted
+        $yearIsExempted = false;
+        foreach ($exemptions as $ex) {
+            $exYear = (int)$ex['exemption_year'];
+            $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
+            $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
+            $exToMonth = $ex['exemption_to_month'] ? (int)$ex['exemption_to_month'] : null;
+            
+            // Full year exemption
+            if ($exMonth === null && $exToYear === null) {
+                if ($y == $exYear) {
+                    $yearIsExempted = true;
+                    break;
+                }
+            }
+            // Range exemption - check if year falls in range
+            else if ($exToYear !== null) {
+                if ($y >= $exYear && $y <= $exToYear) {
+                    $yearIsExempted = true;
+                    break;
+                }
+            }
+        }
+        
+        if ($yearIsExempted) {
+            continue; // Skip this year, it's fully exempted
+        }
+        
+        $mFrom = ($y === $dueStartYear) ? $dueStartMonth : 1;
+        $mTo = ($y === $currentDueYear) ? $currentDueMonth : 12;
+        for ($m = $mFrom; $m <= $mTo; $m++) {
+            // Check if this specific month is exempted
+            $monthIsExempted = false;
+            foreach ($exemptions as $ex) {
+                $exYear = (int)$ex['exemption_year'];
+                $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
+                $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
+                $exToMonth = $ex['exemption_to_month'] ? (int)$ex['exemption_to_month'] : null;
+                
+                // Single month exemption
+                if ($exMonth !== null && $exToYear === null) {
+                    if ($y == $exYear && $m == $exMonth) {
+                        $monthIsExempted = true;
+                        break;
+                    }
+                }
+                // Range exemption
+                else if ($exToYear !== null) {
+                    $startKey = ($exYear * 100) + ($exMonth ?? 1);
+                    $endKey = ($exToYear * 100) + ($exToMonth ?? 12);
+                    $currentKey = ($y * 100) + $m;
+                    if ($currentKey >= $startKey && $currentKey <= $endKey) {
+                        $monthIsExempted = true;
+                        break;
+                    }
+                }
+            }
+            
+            if ($monthIsExempted) continue; // Skip this month, it's exempted
+            
+            $key = ($y * 100) + $m;
+            if (!isset($covered[$key])) {
+                $earliestUnpaidYear = $y;
+                $earliestUnpaidMonth = $m;
+                break 2;
+            }
+        }
+    }
+
+    if ($earliestUnpaidYear !== null) {
+        $earliestUnpaidIndex = ($earliestUnpaidYear * 12) + $earliestUnpaidMonth;
+        if ($requestedStartIndex > $earliestUnpaidIndex) {
+            $firstDueLabel = $monthName[$earliestUnpaidMonth] . ' ' . $earliestUnpaidYear;
+            throw new Exception("Please pay overdue/current dues first. Earliest unpaid month is $firstDueLabel.");
+        }
+    }
+
+    // Check if any of the months being paid for are already paid
+    $requestedMonths = [];
+    if ($is_promo) {
+        // Promo covers Jan-Dec of the selected year
+        for ($m = 1; $m <= 12; $m++) {
+            $requestedMonths[] = ($period_year * 100) + $m;
+        }
+    } else {
+        // Single or range payment
+        for ($y = $period_year; $y <= ($period_to_year ?? $period_year); $y++) {
+            $mFrom = ($y === $period_year) ? $period_month : 1;
+            $mTo = ($y === ($period_to_year ?? $period_year)) ? ($period_to_month ?? $period_month) : 12;
+            for ($m = $mFrom; $m <= $mTo; $m++) {
+                $requestedMonths[] = ($y * 100) + $m;
+            }
+        }
+    }
+
+    // Check if trying to pay for an exempted month/year/range
+    $exemptedMonthsList = [];
+    foreach ($requestedMonths as $monthKey) {
+        $year = intdiv($monthKey, 100);
+        $month = $monthKey % 100;
+        
+        foreach ($exemptions as $ex) {
+            $exYear = (int)$ex['exemption_year'];
+            $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
+            $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
+            $exToMonth = $ex['exemption_to_month'] ? (int)$ex['exemption_to_month'] : null;
+            
+            $isExempt = false;
+            
+            // Full year exemption
+            if ($exMonth === null && $exToYear === null) {
+                if ($year == $exYear) {
+                    $isExempt = true;
+                }
+            }
+            // Single month exemption
+            else if ($exMonth !== null && $exToYear === null) {
+                if ($year == $exYear && $month == $exMonth) {
+                    $isExempt = true;
+                }
+            }
+            // Range exemption
+            else if ($exToYear !== null) {
+                $startKey = ($exYear * 100) + ($exMonth ?? 1);
+                $endKey = ($exToYear * 100) + ($exToMonth ?? 12);
+                $currentKey = ($year * 100) + $month;
+                if ($currentKey >= $startKey && $currentKey <= $endKey) {
+                    $isExempt = true;
+                }
+            }
+            
+            if ($isExempt) {
+                $exemptedMonthsList[] = $monthName[$month] . ' ' . $year;
+                break;
+            }
+        }
+    }
+    
+    if (!empty($exemptedMonthsList)) {
+        $monthList = implode(', ', $exemptedMonthsList);
+        throw new Exception("Cannot record payment for $monthList - exemption is active.");
+    }
+
+    // Find overlap with already paid months
+    $alreadyPaidMonths = [];
+    foreach ($requestedMonths as $monthKey) {
+        if (isset($covered[$monthKey])) {
+            $year = intdiv($monthKey, 100);
+            $month = $monthKey % 100;
+            $alreadyPaidMonths[] = $monthName[$month] . ' ' . $year;
+        }
+    }
+
+    // If any months are already paid, throw error
+    if (!empty($alreadyPaidMonths)) {
+        if ($is_promo) {
+            // For yearly promo, just show a simple message
+            throw new Exception("Cannot apply yearly promo. Some months are already paid this year.");
+        } else {
+            // For single or range, show which months are already paid
+            $monthList = implode(', ', array_map(function($m) {
+                return explode(' ', $m)[0]; // Extract just the month name
+            }, $alreadyPaidMonths));
+            throw new Exception("Already paid: " . $monthList);
+        }
+    }
+
     $stmt = $pdo->prepare("
         INSERT INTO payments 
         (household_id, or_no, period_year, period_month, period_to_year, period_to_month, amount, remarks, is_promo)
@@ -96,13 +333,33 @@ try {
 
     $pdo->commit();
 
-    header("Location: ../actions/view.php?id=$household_id&msg=Payment recorded successfully");
+    $successRedirect = "../actions/view.php?id=$household_id&msg=Payment recorded successfully";
+    if ($isAjax) {
+        respondJson(200, [
+            'success' => true,
+            'redirect' => $successRedirect,
+            'message' => 'Payment recorded successfully.'
+        ]);
+    }
+
+    header("Location: $successRedirect");
     exit;
 
 } catch (Exception $e) {
-    $pdo->rollBack();
-    echo "<div class='bg-red-100 border-l-4 border-red-500 text-red-700 p-4 mb-6 rounded-r-lg mx-auto max-w-4xl'>
-            Error: " . htmlspecialchars($e->getMessage()) . "
-          </div>";
+    if ($pdo->inTransaction()) {
+        $pdo->rollBack();
+    }
+
+    if ($isAjax) {
+        respondJson(422, [
+            'success' => false,
+            'error' => $e->getMessage()
+        ]);
+    }
+
+    $errorMessage = urlencode($e->getMessage());
+    $redirectId = (int)($household_id ?? 0);
+    header("Location: ../pages/payment.php?error={$errorMessage}&household_id={$redirectId}");
+    exit;
 }
 ?>

@@ -62,30 +62,123 @@ $html = '
 <html>
 <head>
     <style>
-        body { font-family: Arial, sans-serif; font-size: 11pt; line-height: 1.4; }
-        h1 { font-size: 20pt; color: #1f7f1f; margin-bottom: 10pt; text-align: center; }
-        h2 { font-size: 14pt; color: #1f7f1f; margin-top: 15pt; margin-bottom: 8pt; border-bottom: 2px solid #1f7f1f; padding-bottom: 4pt; }
-        .section { margin-bottom: 15pt; }
-        .info-row { margin-bottom: 6pt; }
-        .info-label { font-weight: bold; color: #333; width: 30%; display: inline-block; }
-        .info-value { color: #555; }
-        table { width: 100%; border-collapse: collapse; margin-top: 8pt; }
-        th { background-color: #f0f0f0; color: #333; font-weight: bold; padding: 6pt; border: 1px solid #ccc; text-align: left; font-size: 10pt; }
-        td { padding: 6pt; border: 1px solid #ccc; font-size: 10pt; }
-        .title-section { margin-bottom: 20pt; }
-        .paid-badge { background-color: #d4edda; color: #155724; padding: 2pt 6pt; border-radius: 3pt; font-size: 9pt; }
+        body { font-family: Arial, sans-serif; font-size: 10pt; line-height: 1.3; color: #333; }
+        
+        .header-banner { 
+            background-color: #1F8449; 
+            color: white; 
+            padding: 8pt 10pt; 
+            text-align: center; 
+            margin: -12pt -12pt 0 -12pt;
+            margin-bottom: 12pt;
+        }
+        .header-banner h1 { 
+            font-size: 18pt; 
+            margin: 0; 
+            font-weight: bold; 
+        }
+        .header-banner p { 
+            font-size: 8pt; 
+            margin: 3pt 0 0 0; 
+            color: #e8f5e9;
+        }
+        
+        h2 { 
+            font-size: 11pt; 
+            color: #1F8449;
+            margin-top: 8pt; 
+            margin-bottom: 6pt; 
+            padding: 3pt 0 3pt 0;
+            border-bottom: 2pt solid #1F8449;
+        }
+        
+        .primary-info-box {
+            background-color: #fafafa;
+            border: none;
+            padding: 8pt;
+            margin-bottom: 10pt;
+            border-radius: 3pt;
+        }
+        
+        .section { margin-bottom: 8pt; }
+        
+        .info-row { 
+            margin-bottom: 4pt; 
+            display: flex;
+            font-size: 9pt;
+        }
+        
+        .info-label { 
+            font-weight: bold; 
+            color: #1F8449; 
+            width: 32%; 
+            flex-shrink: 0;
+        }
+        
+        .info-value { 
+            color: #555; 
+            flex-grow: 1;
+        }
+        
+        table { 
+            width: 100%; 
+            border-collapse: collapse; 
+            margin-top: 6pt; 
+        }
+        
+        th { 
+            background-color: #e8f5e9; 
+            color: #1F8449; 
+            font-weight: bold; 
+            padding: 5pt 6pt; 
+            border: 1pt solid #1F8449; 
+            text-align: left; 
+            font-size: 9pt; 
+        }
+        
+        td { 
+            padding: 5pt 6pt; 
+            border: 1pt solid #ddd; 
+            font-size: 9pt; 
+        }
+        
+        tbody tr:nth-child(odd) {
+            background-color: #fafafa;
+        }
+        
+        tbody tr:nth-child(even) {
+            background-color: #ffffff;
+        }
+        
+        .badge-success { 
+            background-color: #d4edda; 
+            color: #155724; 
+            padding: 2pt 6pt; 
+            border-radius: 3pt; 
+            font-size: 8pt;
+            font-weight: bold;
+            display: inline-block;
+        }
+        
+        .badge-info { 
+            background-color: #d1ecf1; 
+            color: #0c5460; 
+            padding: 2pt 6pt; 
+            border-radius: 3pt; 
+            font-size: 8pt;
+            font-weight: bold;
+            display: inline-block;
+        }
     </style>
 </head>
 <body>
-    <div class="title-section">
+    <div class="header-banner">
         <h1>Household Details Report</h1>
-        <div style="text-align: center; color: #666; font-size: 10pt; margin-bottom: 15pt;">
-            Generated on ' . date('F d, Y H:i A') . '
-        </div>
+        <p>Generated on ' . date('F d, Y H:i A') . '</p>
     </div>
 
     <h2>Primary Member Information</h2>
-    <div class="section">
+    <div class="primary-info-box">
         <div class="info-row">
             <span class="info-label">Name:</span>
             <span class="info-value">' . htmlspecialchars($household['last_name'] . ', ' . $household['first_name'] . ' ' . ($household['middle_name'] ?? '')) . '</span>
@@ -116,7 +209,7 @@ $html = '
         </div>
     </div>
 
-    <h2>Address</h2>
+    <h2>Address Information</h2>
     <div class="section">
         <div class="info-row">
             <span class="info-label">Block/Lot/Street:</span>
@@ -132,7 +225,7 @@ $html = '
         </div>
     </div>
 
-    <h2>Move-in/Move-out Dates</h2>
+    <h2>Residency Dates</h2>
     <div class="section">
         <div class="info-row">
             <span class="info-label">Move-in Date:</span>
@@ -140,7 +233,7 @@ $html = '
         </div>
         <div class="info-row">
             <span class="info-label">Move-out Date:</span>
-            <span class="info-value">' . ($household['move_out_date'] ? date('M d, Y', strtotime($household['move_out_date'])) : '<span class="paid-badge">Currently Living</span>') . '</span>
+            <span class="info-value">' . ($household['move_out_date'] ? date('M d, Y', strtotime($household['move_out_date'])) : '<span class="badge-success">Currently Living</span>') . '</span>
         </div>
     </div>
 ';
@@ -236,8 +329,8 @@ require '../vendor/autoload.php';
 $mpdf = new \Mpdf\Mpdf([
     'margin_left' => 12,
     'margin_right' => 12,
-    'margin_top' => 15,
-    'margin_bottom' => 15
+    'margin_top' => 12,
+    'margin_bottom' => 12
 ]);
 
 $mpdf->WriteHTML($html);

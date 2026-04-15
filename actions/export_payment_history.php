@@ -12,6 +12,7 @@ if (!is_admin()) {
 $input = json_decode(file_get_contents('php://input'), true);
 $householdId = (int)($input['household_id'] ?? 0);
 $householdName = $input['household_name'] ?? 'Household';
+$selectedYear = !empty($input['year']) ? (int)$input['year'] : null;
 
 if (!$householdId) {
     http_response_code(400);
@@ -26,13 +27,26 @@ if (!$stmt->fetch()) {
     exit('Household not found');
 }
 
-// Fetch all payments for household
-$pstmt = $pdo->prepare("
-    SELECT * FROM payments 
-    WHERE household_id = ? AND deleted_at IS NULL 
-    ORDER BY paid_at DESC
-");
-$pstmt->execute([$householdId]);
+// Fetch payments for household (filtered by year if provided)
+if ($selectedYear) {
+    $pstmt = $pdo->prepare("
+        SELECT * FROM payments 
+        WHERE household_id = ? AND deleted_at IS NULL 
+        AND (
+            (period_to_year IS NULL AND period_year = ?)
+            OR (period_to_year IS NOT NULL AND period_year <= ? AND period_to_year >= ?)
+        )
+        ORDER BY paid_at DESC
+    ");
+    $pstmt->execute([$householdId, $selectedYear, $selectedYear, $selectedYear]);
+} else {
+    $pstmt = $pdo->prepare("
+        SELECT * FROM payments 
+        WHERE household_id = ? AND deleted_at IS NULL 
+        ORDER BY paid_at DESC
+    ");
+    $pstmt->execute([$householdId]);
+}
 $payments = $pstmt->fetchAll();
 
 // Use PHPSpreadsheet to create Excel
