@@ -337,7 +337,7 @@ function showPopupMessage(message) {
     box.innerHTML = `
         <h3 class="text-lg font-bold text-gray-800 mb-3">Notice</h3>
         <p class="text-sm text-gray-700 mb-6"></p>
-        <button type="button" class="modal-ok bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg">OK</button>
+        <button type="button" class="modal-ok bg-green-600 hover:bg-green-700 text-white font-medium py-2 px-6 rounded-lg">OK</button>
     `;
 
     const messageEl = box.querySelector('p');
@@ -439,21 +439,30 @@ function filterAndPaginate() {
 // Export to Excel (server-side, all households for selected year)
 function exportExcel() {
     const selectedYear = document.getElementById('year').value;
+    const statusVal = document.getElementById('status-filter').value;
 
     fetch('../actions/export_dues_excel.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: selectedYear })
+        body: JSON.stringify({ year: selectedYear, status: statusVal })
     })
     .then(response => {
+        if (response.status === 400) {
+            // Error response (no data matches filter)
+            return response.json().then(data => {
+                showPopupMessage('No data to export: ' + (data.error || 'No households match the current filters.'));
+                return null;
+            });
+        }
         if (!response.ok) throw new Error('Network response was not ok');
         return response.blob();
     })
     .then(blob => {
+        if (!blob) return; // Error case, already handled
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dues_overview_${selectedYear}.xlsx`;
+        a.download = statusVal === 'all' ? `dues_overview_${selectedYear}.xlsx` : `dues_overview_${selectedYear}_${statusVal}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
