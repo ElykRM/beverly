@@ -1,4 +1,5 @@
 <?php
+include '../includes/auth.php';
 include '../db.php';
 include '../includes/header.php';
 
@@ -86,7 +87,7 @@ $success_msg = $_GET['msg'] ?? '';
                                 data-middlename="<?= htmlspecialchars(strtolower($h['middle_name'] ?? '')) ?>"
                                 data-street="<?= htmlspecialchars(strtolower($h['street'] ?? '')) ?>"
                                 data-status="<?= htmlspecialchars($h['home_status']) ?>"
-                                onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>'">
+                                onclick="window.location.href='../actions/view.php?id=<?= $h['id'] ?>&referrer=habitants'">
                                 <td class="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
                                     <?= htmlspecialchars($h['block'] ?: '-') ?>
                                 </td>
@@ -134,11 +135,13 @@ $success_msg = $_GET['msg'] ?? '';
     </div>
 
     <!-- New Household button at bottom -->
+    <?php if (is_admin()): ?>
     <div class="text-center sm:text-right mt-6">
         <a href="../actions/add.php" class="inline-block bg-green-700 hover:bg-green-800 text-white font-medium py-3 px-8 rounded-lg shadow transition">
             + New Household
         </a>
     </div>
+    <?php endif; ?>
 </div>
 
 <script>

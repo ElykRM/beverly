@@ -1,4 +1,5 @@
 <?php
+include '../includes/auth.php';
 include '../db.php';
 
 $status_filter = $_GET['status'] ?? 'ALL';
