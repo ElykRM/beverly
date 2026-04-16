@@ -1,5 +1,4 @@
 <?php
-include '../includes/auth.php';
 include '../db.php';
 include '../includes/header.php';
 
@@ -7,7 +6,7 @@ include '../includes/header.php';
 $currentYear = (int)date('Y');
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $currentYear;
 
-$minYear = $currentYear - 10;
+$minYear = $currentYear - 5;
 $maxYear = $currentYear + 5;
 if ($selectedYear < $minYear || $selectedYear > $maxYear) {
     $selectedYear = $currentYear;
@@ -113,11 +112,11 @@ foreach ($households as $h) {
 
     <!-- Filters + Search -->
     <div class="bg-white p-6 rounded-xl shadow-md border border-gray-200 mb-10">
-        <form method="GET" id="year-form">
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <!-- Year -->
             <div>
                 <label for="year" class="block text-sm font-medium text-gray-700 mb-1">Select Year</label>
+                <form method="GET" id="year-form">
                     <select name="year" id="year" 
                             class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                             onchange="document.getElementById('year-form').submit()">
@@ -127,6 +126,7 @@ foreach ($households as $h) {
                             </option>
                         <?php endforeach; ?>
                     </select>
+                </form>
             </div>
 
             <!-- Search -->
@@ -153,12 +153,11 @@ foreach ($households as $h) {
                 Clear Filters
             </button>
         </div>
-        </form>
     </div>
 
     <div class="bg-white rounded-xl shadow-lg border border-gray-200 overflow-hidden">
         <div class="overflow-x-auto lg:overflow-x-visible">
-            <table id="dues-table" class="w-full divide-y divide-gray-200">
+            <table id="dues-table" class="table-fixed w-full divide-y divide-gray-200">
                 <thead class="bg-gray-50 sticky top-0 z-10">
                     <tr>
                         <th class="px-6 py-4 text-left text-xs font-medium text-gray-500 uppercase tracking-wider border-r border-gray-200">
@@ -185,7 +184,7 @@ foreach ($households as $h) {
                         ?>
                         <tr class="hover:bg-gray-50 transition-colors cursor-pointer household-row"
                             data-search="<?= $rowText ?>"
-                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>&referrer=dues'">
+                            onclick="window.location.href='../actions/view.php?id=<?= $hid ?>'">
                             <td class="px-6 py-4 whitespace-normal break-words text-sm font-medium text-gray-900 border-r border-gray-200">
                                 <div><?= $name ?></div>
                                 <div class="text-xs text-gray-500"><?= $addr ?></div>
@@ -306,59 +305,13 @@ foreach ($households as $h) {
     <?php if (!empty($households)): ?>
         <div class="mt-6 text-right">
             <button onclick="exportExcel()" class="inline-block bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-8 rounded-lg shadow transition">
-                Export All Households to Excel (.xlsx)
+                Export Filtered List to Excel (.xlsx)
             </button>
         </div>
     <?php endif; ?>
 </div>
 
 <script>
-// Modal popup for messages
-function showPopupMessage(message) {
-    const existing = document.getElementById('popup-overlay');
-    if (existing) existing.remove();
-
-    const overlay = document.createElement('div');
-    overlay.id = 'popup-overlay';
-    Object.assign(overlay.style, {
-        position: 'fixed',
-        inset: '0',
-        background: 'rgba(0, 0, 0, 0.4)',
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '1rem',
-        zIndex: '9999'
-    });
-
-    const box = document.createElement('div');
-    box.className = 'bg-white rounded-xl shadow-2xl border border-gray-200 p-6 text-center';
-    Object.assign(box.style, { width: '100%', maxWidth: '28rem' });
-    box.innerHTML = `
-        <h3 class="text-lg font-bold text-gray-800 mb-3">Notice</h3>
-        <p class="text-sm text-gray-700 mb-6"></p>
-        <button type="button" class="modal-ok bg-blue-600 hover:bg-blue-700 text-white font-medium py-2 px-6 rounded-lg">OK</button>
-    `;
-
-    const messageEl = box.querySelector('p');
-    messageEl.textContent = message;
-    Object.assign(messageEl.style, {
-        whiteSpace: 'pre-line',
-        textAlign: 'left',
-        lineHeight: '1.5'
-    });
-    const okBtn = box.querySelector('.modal-ok');
-
-    okBtn.addEventListener('click', () => overlay.remove());
-    overlay.addEventListener('click', (ev) => {
-        if (ev.target === overlay) overlay.remove();
-    });
-
-    overlay.appendChild(box);
-    document.body.appendChild(overlay);
-    okBtn.focus();
-}
-
 // Client-side search + filter + pagination (unchanged)
 const searchInput   = document.getElementById('search');
 const statusFilter  = document.getElementById('status-filter');
@@ -387,12 +340,8 @@ function filterAndPaginate() {
             const hasPaid = Array.from(cells).some(td => 
                 td.innerHTML.includes('₱') || td.innerHTML.includes('Promo')
             );
-            const hasOverdue = Array.from(cells).some(td => 
-                td.className.includes('bg-red-100')
-            );
-            const hasUnpaid = Array.from(cells).some(td => 
-                td.className.includes('bg-yellow-100')
-            );
+            const hasOverdue = Array.from(cells).some(td => td.textContent.includes('Overdue'));
+            const hasUnpaid = Array.from(cells).some(td => td.textContent.includes('Unpaid'));
 
             if (statusVal === 'paid')    matchesStatus = hasPaid;
             if (statusVal === 'unpaid')  matchesStatus = hasUnpaid || (!hasPaid && !hasOverdue);
@@ -436,14 +385,79 @@ function filterAndPaginate() {
     }
 }
 
-// Export to Excel (server-side, all households for selected year)
+// Export to Excel (now includes numeric values + total row)
 function exportExcel() {
-    const selectedYear = document.getElementById('year').value;
+    const visibleRows = rows.filter(row => row.style.display !== 'none' && row.id !== 'no-results');
+
+    if (visibleRows.length === 0) {
+        alert('No data to export. Try adjusting filters.');
+        return;
+    }
+
+    const exportData = [];
+    visibleRows.forEach(row => {
+        const cells = row.querySelectorAll('td');
+        // Extract block and lot from address
+        const addr = cells[0].querySelector('div:last-child').textContent.trim();
+        let block = '', lot = '';
+        if (addr !== '—') {
+            const parts = addr.split(' ');
+            if (parts.length >= 4) {
+                block = parts[1];
+                lot = parts[3];
+            }
+        }
+        // Extract clean numeric values where possible
+        const rowData = {
+            block: block,
+            lot: lot,
+            household_name: cells[0].querySelector('div:first-child').textContent.trim(),
+            total_unpaid: parseFloat(cells[1].textContent.trim().replace(/[₱, ]/g, '')) || 0,
+        };
+
+        for (let i = 2; i < cells.length; i++) {
+            const cellText = cells[i].textContent.trim();
+            const monthKey = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'][i-2];
+            if (cellText.includes('Promo') || cellText === '—' || cellText === 'Overdue' || cellText === 'Unpaid' || cellText === 'Future') {
+                rowData[monthKey] = cellText; // keep as text
+            } else {
+                rowData[monthKey] = parseFloat(cellText.replace(/[₱, ]/g, '')) || 0; // numeric
+            }
+        }
+        exportData.push(rowData);
+    });
+
+    // Compute totals from the filtered exportData so the spreadsheet reflects
+    // whatever rows are currently visible (honoring search/status filters/pagination).
+    const monthKeys = ['jan','feb','mar','apr','may','jun','jul','aug','sep','oct','nov','dec'];
+    const totals = {
+        block: '',
+        lot: '',
+        household_name: 'TOTAL',
+        total_unpaid: 0,
+    };
+    monthKeys.forEach(k => totals[k] = 0);
+
+    exportData.forEach(r => {
+        totals.total_unpaid += parseFloat(r.total_unpaid) || 0;
+        monthKeys.forEach(k => {
+            const v = parseFloat(r[k]);
+            if (!isNaN(v)) totals[k] += v;
+        });
+    });
+
+    // round totals to two decimals
+    totals.total_unpaid = Math.round(totals.total_unpaid * 100) / 100;
+    monthKeys.forEach(k => {
+        totals[k] = Math.round(totals[k] * 100) / 100;
+    });
+
+    exportData.push(totals);
 
     fetch('../actions/export_dues_excel.php', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ year: selectedYear })
+        body: JSON.stringify({ data: exportData })
     })
     .then(response => {
         if (!response.ok) throw new Error('Network response was not ok');
@@ -453,7 +467,7 @@ function exportExcel() {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement('a');
         a.href = url;
-        a.download = `dues_overview_${selectedYear}.xlsx`;
+        a.download = `dues_overview_${new Date().toISOString().slice(0,10)}.xlsx`;
         document.body.appendChild(a);
         a.click();
         a.remove();
@@ -461,7 +475,7 @@ function exportExcel() {
     })
     .catch(err => {
         console.error('Export failed:', err);
-        showPopupMessage('Export failed. Check console (F12) for details.');
+        alert('Export failed. Check console (F12) for details.');
     });
 }
 

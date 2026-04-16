@@ -1,6 +1,5 @@
 <?php
 // actions/export_excel.php
-require_once '../includes/auth.php';
 
 // Make sure Composer autoload is correct relative to this file
 // turn off error output to avoid corrupting excel
