@@ -17,8 +17,17 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
     exit;
 }
 
-$input = json_decode(file_get_contents('php://input'), true);
+$rawInput = file_get_contents('php://input');
+$input = json_decode($rawInput, true);
 $input = is_array($input) ? $input : [];
+
+// Ensure year parameter is set
+if (!isset($input['year']) || !is_numeric($input['year'])) {
+    http_response_code(400);
+    header('Content-Type: application/json');
+    echo json_encode(['error' => 'Missing or invalid year parameter']);
+    exit;
+}
 
 function buildDuesData(PDO $pdo, int $selectedYear): array
 {
@@ -244,10 +253,10 @@ function writeDuesSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, ar
 }
 
 $spreadsheet = new Spreadsheet();
-$baseYear = isset($input['year']) ? (int)$input['year'] : (int)date('Y');
+$baseYear = (int)$input['year'];  // Year is now guaranteed to exist and be numeric
 
-if (isset($input['data']) && !isset($input['year'])) {
-    // Legacy fallback path for older front-end requests.
+if (isset($input['data']) && count($input) === 1) {
+    // Legacy fallback path for older front-end requests (with embedded data).
     $data = is_array($input['data']) ? $input['data'] : [];
     $lastIndex = count($data) - 1;
     if ($lastIndex >= 0) {
