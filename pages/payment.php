@@ -517,7 +517,7 @@ function addExemption() {
         reason: reason
     };
     
-    fetch('../actions/manage_exemption.php', {
+    fetch('/beverly/actions/manage_exemption.php', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/x-www-form-urlencoded',
@@ -563,7 +563,7 @@ function addExemption() {
 // Delete exemption
 function deleteExemption(householdId, exemData) {
     showDeleteConfirmModal('Remove this exemption?', () => {
-        fetch('../actions/manage_exemption.php', {
+        fetch('/beverly/actions/manage_exemption.php', {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
