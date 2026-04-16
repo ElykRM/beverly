@@ -29,6 +29,12 @@ if (!isset($input['year']) || !is_numeric($input['year'])) {
     exit;
 }
 
+$statusFilter = $input['status'] ?? 'all'; // Default to 'all' if not provided
+$validStatuses = ['all', 'paid', 'unpaid', 'overdue'];
+if (!in_array($statusFilter, $validStatuses)) {
+    $statusFilter = 'all';
+}
+
 function buildDuesData(PDO $pdo, int $selectedYear): array
 {
     $householdsStmt = $pdo->query("\n        SELECT id, last_name, first_name, block, lot\n        FROM households\n        ORDER BY last_name, first_name\n    ");
@@ -137,6 +143,50 @@ function buildDuesData(PDO $pdo, int $selectedYear): array
     }
 
     return $rows;
+}
+
+function filterDuesByStatus(array $rows, string $status): array
+{
+    if ($status === 'all') {
+        return $rows;
+    }
+
+    $filtered = [];
+    foreach ($rows as $row) {
+        $monthKeys = ['jan', 'feb', 'mar', 'apr', 'may', 'jun', 'jul', 'aug', 'sep', 'oct', 'nov', 'dec'];
+        $hasPaid = false;
+        $hasOverdue = false;
+        $hasUnpaid = false;
+        
+        foreach ($monthKeys as $month) {
+            $value = $row[$month] ?? '';
+            if (is_numeric($value) || $value === 'Promo') {
+                $hasPaid = true;
+            }
+            if ($value === 'overdue') {
+                $hasOverdue = true;
+            }
+            if ($value === 'unpaid') {
+                $hasUnpaid = true;
+            }
+        }
+        
+        $include = false;
+        if ($status === 'paid' && $hasPaid) {
+            $include = true;
+        } elseif ($status === 'overdue' && $hasOverdue) {
+            $include = true;
+        } elseif ($status === 'unpaid' && ($hasUnpaid || (!$hasPaid && !$hasOverdue))) {
+            // "Unpaid" means households with unpaid/current month due OR households with no payments and no overdue
+            $include = true;
+        }
+        
+        if ($include) {
+            $filtered[] = $row;
+        }
+    }
+    
+    return $filtered;
 }
 
 function writeDuesSheet(\PhpOffice\PhpSpreadsheet\Worksheet\Worksheet $sheet, array $data, string $title): void
@@ -276,13 +326,25 @@ if (isset($input['data']) && count($input) === 1) {
     $sheet = $spreadsheet->getActiveSheet();
     $sheetTitle = 'Year ' . $baseYear;
     $sheetData = buildDuesData($pdo, (int)$baseYear);
+    // Apply status filter
+    $sheetData = filterDuesByStatus($sheetData, $statusFilter);
+    
+    // Prevent export if no data matches the filter
+    if (empty($sheetData)) {
+        http_response_code(400);
+        header('Content-Type: application/json');
+        echo json_encode(['error' => "No households match the $statusFilter filter for $baseYear"]);
+        exit;
+    }
+    
     writeDuesSheet($sheet, $sheetData, $sheetTitle);
 
     $spreadsheet->setActiveSheetIndex(0);
 }
 
 header('Content-Type: application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-header('Content-Disposition: attachment;filename="dues_overview_paid_years_' . date('Y-m-d') . '.xlsx"');
+$filename = $statusFilter === 'all' ? "dues_overview_{$baseYear}" : "dues_overview_{$baseYear}_{$statusFilter}";
+header('Content-Disposition: attachment;filename="' . $filename . '_' . date('Y-m-d') . '.xlsx"');
 header('Cache-Control: max-age=0');
 header('Pragma: public');
 
