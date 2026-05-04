@@ -2,6 +2,7 @@
 // actions/export_dues_excel.php
 require_once '../includes/auth.php';
 require_once '../db.php';
+require_once '../config.php';
 
 require_once '../vendor/autoload.php'; // Adjust this path to your vendor folder
 
@@ -64,7 +65,7 @@ function buildDuesData(PDO $pdo, int $selectedYear): array
             $monthCount += $mTo - $mFrom + 1;
         }
 
-        $divisor = $isPromo ? min(10, $monthCount) : $monthCount;
+        $divisor = $isPromo ? min(PROMO_EFFECTIVE_MONTHS, $monthCount) : $monthCount;
         $perMonth = $divisor > 0 ? $totalAmount / $divisor : 0;
 
         for ($y = $startY; $y <= $endY; $y++) {

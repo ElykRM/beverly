@@ -1,21 +1,23 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+include '../config.php';
 include '../includes/header.php';
 
 // Current year and range
 $currentYear = (int)date('Y');
 $selectedYear = isset($_GET['year']) ? (int)$_GET['year'] : $currentYear;
 
-$minYear = $currentYear - 10;
+// Validate selected year is within allowed range
+$minYear = START_YEAR;
 $maxYear = $currentYear + 5;
 if ($selectedYear < $minYear || $selectedYear > $maxYear) {
     $selectedYear = $currentYear;
 }
-$years = range($minYear, $maxYear);
+$years = getYearRange();
 
-// Months
-$months = [1=>'Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+// Get short month names
+$months = getShortMonthNames();
 
 // Fetch all households
 $householdsStmt = $pdo->query("
@@ -52,8 +54,8 @@ foreach ($paymentsRaw as $p) {
     $totalAmount = (float)$p['amount'];
     $isPromo = (int)$p['is_promo'];
 
-    // For promo: divide by 10 months (Jan–Oct), Nov–Dec = Promo tag only
-    $effectiveMonths = $isPromo ? 10 : 12;
+    // For promo: divide by PROMO_EFFECTIVE_MONTHS (Jan–Oct), Nov–Dec = Promo tag only
+    $effectiveMonths = $isPromo ? PROMO_EFFECTIVE_MONTHS : 12;
 
     $monthCount = 0;
     for ($y = $startY; $y <= $endY; $y++) {
@@ -62,7 +64,7 @@ foreach ($paymentsRaw as $p) {
         $monthCount += $mTo - $mFrom + 1;
     }
 
-    $divisor = $isPromo ? min(10, $monthCount) : $monthCount;
+    $divisor = $isPromo ? min(PROMO_EFFECTIVE_MONTHS, $monthCount) : $monthCount;
     $perMonth = $divisor > 0 ? $totalAmount / $divisor : 0;
 
     for ($y = $startY; $y <= $endY; $y++) {
@@ -78,7 +80,7 @@ foreach ($paymentsRaw as $p) {
             ];
 
             // Add to monthly total (only if not promo Nov-Dec)
-            if (!$isPromo || $m <= 10) {
+            if (!$isPromo || $m <= PROMO_EFFECTIVE_MONTHS) {
                 $monthlyTotals[$m] += round($perMonth, 2);
             }
         }
@@ -93,7 +95,8 @@ foreach ($households as $h) {
     for ($m = 1; $m <= 12; $m++) {
         $key = "$selectedYear-$m";
         if (!isset($monthlyData[$hid][$key])) {
-            $unpaid += 100.00; // ← CHANGE THIS if your monthly due is not ₱100
+            $dueForMonth = getDueAmount($selectedYear, $m);
+            $unpaid += $dueForMonth;
         }
     }
     $householdUnpaid[$hid] = $unpaid;
@@ -221,7 +224,7 @@ foreach ($households as $h) {
                                 if ($isPaid) {
                                     $class = 'bg-green-100 text-green-800 font-medium text-s';
                                     if ($isPromo) {
-                                        if ($monthNum <= 10) {
+                                        if ($monthNum <= PROMO_EFFECTIVE_MONTHS) {
                                             $display = '₱' . number_format($amount, 2);
                                         } else {
                                             $display = '<span class="inline-block bg-purple-100 text-purple-800 px-2 py-1 rounded-full text-xs font-bold">Promo</span>';
@@ -372,7 +375,7 @@ const showingCount  = document.getElementById('showing-count');
 const totalFilteredEl = document.getElementById('total-filtered');
 
 let currentPage = 1;
-const perPage = 10;
+const perPage = <?= PAGINATION_PER_PAGE ?>;
 
 function filterAndPaginate() {
     const searchText = (searchInput.value || '').toLowerCase().trim();

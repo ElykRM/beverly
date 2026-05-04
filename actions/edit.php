@@ -142,6 +142,25 @@ $vehicles = $vstmt->fetchAll();
                 <input type="date" name="move_out_date" id="move_out_date" value="<?= htmlspecialchars($household['move_out_date'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
         </div>
+
+        <!-- Membership (optional) -->
+        <div class="mt-8">
+            <h4 class="text-base font-semibold text-green-800 mb-4">Membership (Optional)</h4>
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Date of membership</label>
+                    <input type="date" name="membership_date" value="<?= htmlspecialchars($household['membership_date'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">OR No. / INV No.</label>
+                    <input type="text" name="membership_or_no" value="<?= htmlspecialchars($household['membership_or_no'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" placeholder="e.g. 00004567">
+                </div>
+                <div>
+                    <label class="block text-sm font-medium text-gray-700 mb-1">Fee (₱)</label>
+                    <input type="number" name="membership_fee" step="0.01" min="0" value="<?= htmlspecialchars($household['membership_fee'] ?? '') ?>" class="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500" placeholder="e.g. 100.00">
+                </div>
+            </div>
+        </div>
     </div>
 
     <!-- Additional Household Members -->

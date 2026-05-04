@@ -16,11 +16,19 @@ try {
         $moveOutDate = $_POST['move_out_date'];
     }
 
+    $membershipDate = !empty($_POST['membership_date']) ? $_POST['membership_date'] : null;
+    $membershipOrNo = isset($_POST['membership_or_no']) && trim($_POST['membership_or_no']) !== ''
+        ? trim($_POST['membership_or_no'])
+        : null;
+    $membershipFee = isset($_POST['membership_fee']) && $_POST['membership_fee'] !== ''
+        ? (float)$_POST['membership_fee']
+        : null;
+
     // Insert primary household
     $stmt = $pdo->prepare("
         INSERT INTO households 
-        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets, move_in_date, move_out_date)
-        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
+        (last_name, first_name, middle_name, home_status, block, lot, street, birthday, gender, contact_no, occupation, num_pets, move_in_date, move_out_date, membership_date, membership_or_no, membership_fee)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
     ");
 
     $stmt->execute([
@@ -37,7 +45,10 @@ try {
         $_POST['occupation'] ?? null,
         $_POST['num_pets'] ?? 0,
         $_POST['move_in_date'] ?: null,
-        $moveOutDate
+        $moveOutDate,
+        $membershipDate,
+        $membershipOrNo,
+        $membershipFee
     ]);
 
     $household_id = $pdo->lastInsertId();

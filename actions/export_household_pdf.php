@@ -209,6 +209,22 @@ $html = '
         </div>
     </div>
 
+    <h2>Memberships</h2>
+    <div class="section">
+        <div class="info-row">
+            <span class="info-label">Date of Membership:</span>
+            <span class="info-value">' . ($household['membership_date'] ? date('M d, Y', strtotime($household['membership_date'])) : '-') . '</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">OR No. / INV No.:</span>
+            <span class="info-value">' . htmlspecialchars($household['membership_or_no'] ?: '-') . '</span>
+        </div>
+        <div class="info-row">
+            <span class="info-label">Membership Fee:</span>
+            <span class="info-value">' . ($household['membership_fee'] ? '₱' . number_format($household['membership_fee'], 2) : '-') . '</span>
+        </div>
+    </div>
+
     <h2>Address Information</h2>
     <div class="section">
         <div class="info-row">

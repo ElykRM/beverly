@@ -1,6 +1,7 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+include '../config.php';
 include '../includes/header.php';
 
 // Admin-only page
@@ -19,14 +20,21 @@ $households = $hstmt->fetchAll();
 $preselect_id = $_GET['household_id'] ?? null;
 $popup_error = isset($_GET['error']) ? trim((string)$_GET['error']) : '';
 
-// Months & years
+// Get month names (full month names for payment form)
+$months = getMonthNames();
+// Also get full months for numeric keys
 $months = [
     '01' => 'January', '02' => 'February', '03' => 'March', '04' => 'April',
     '05' => 'May', '06' => 'June', '07' => 'July', '08' => 'August',
     '09' => 'September', '10' => 'October', '11' => 'November', '12' => 'December'
 ];
+
 $currentYear = (int)date('Y');
-$years = range($currentYear - 10, $currentYear + 10);
+$years = getYearRange();
+
+// Promo configuration from config.php
+$promoAmount = PROMO_AMOUNT;
+$promoAmountLabel = PROMO_AMOUNT_LABEL;
 
 // Fetch all exemptions for reference (will be filtered by JS on household select)
 $exemptStmt = $pdo->prepare("
@@ -190,9 +198,9 @@ $allExemptions = $exemptStmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC);
         <div class="mb-8">
             <label class="inline-flex items-center cursor-pointer">
                 <input type="checkbox" name="is_promo" id="is_promo" value="1" class="form-checkbox text-green-600 rounded">
-                <span class="ml-2 text-sm font-medium text-gray-700">Apply Yearly Promo (₱1,000 for full year Jan–Dec)</span>
+                <span class="ml-2 text-sm font-medium text-gray-700">Apply Yearly Promo (₱<?= $promoAmountLabel ?> for full year Jan–Dec)</span>
             </label>
-            <p class="text-xs text-gray-500 mt-1">When checked, payment automatically covers the full selected year.</p>
+            <p class="text-xs text-gray-500 mt-1">When checked, payment automatically covers January–December. You can change the year.</p>
         </div>
 
         <!-- Single month -->
@@ -265,7 +273,7 @@ $allExemptions = $exemptStmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC);
         <!-- OR, Amount, Remarks -->
         <div class="grid grid-cols-1 md:grid-cols-2 gap-6 mb-8">
             <div>
-                <label for="or_no" class="block text-sm font-medium text-gray-700 mb-2">OR Number</label>
+                <label for="or_no" class="block text-sm font-medium text-gray-700 mb-2">OR Number/INV number</label>
                 <input type="text" name="or_no" id="or_no" required class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500">
             </div>
             <div>
@@ -274,7 +282,7 @@ $allExemptions = $exemptStmt->fetchAll(PDO::FETCH_GROUP | PDO::FETCH_ASSOC);
                        class="w-full px-4 py-3 border border-gray-300 rounded-lg focus:ring-green-500 focus:border-green-500"
                        value="0.00">
                 <p id="amount-note" class="text-xs text-gray-500 mt-1 hidden italic">
-                    Locked to ₱1,000.00 for Yearly Promo (Jan–Dec)
+                    Promo selected for full year (Jan–Dec). Amount is editable.
                 </p>
             </div>
             <div class="md:col-span-2">
@@ -662,7 +670,7 @@ typeRadios.forEach(radio => {
     });
 });
 
-// Promo: force full year + lock amount with readonly
+// Promo: force full year (month locked, year changeable)
 const promoCheckbox = document.getElementById('is_promo');
 const amountInput = document.getElementById('amount');
 const amountNote = document.getElementById('amount-note');
@@ -690,16 +698,16 @@ function updatePromoState() {
         document.getElementById('to_month').value = '12';
         document.getElementById('to_year').value = yearValue;
 
-        document.querySelectorAll('#range-group select').forEach(sel => sel.disabled = true);
+        // Lock only month fields, allow year to be changed
+        document.getElementById('from_month').disabled = true;
+        document.getElementById('to_month').disabled = true;
+        document.getElementById('from_year').disabled = false;
+        document.getElementById('to_year').disabled = false;
 
-        // Lock amount visually & functionally
-        originalAmount = amountInput.value;
-        amountInput.value = '1000.00';
-        amountInput.readOnly = true;
-        amountInput.classList.add('bg-gray-100', 'cursor-not-allowed');
+        // Amount stays editable; just show the promo note
         amountNote.classList.remove('hidden');
     } else {
-        // Restore normal - FULLY enable EVERYTHING
+        // Restore normal - fully enable everything
         console.log('Unlocking promo state');
         
         // Enable all payment type radios
@@ -708,15 +716,12 @@ function updatePromoState() {
             console.log('Enabled radio:', r.value);
         });
         
-        // Enable ALL selects on the page (belt and suspenders)
+        // Enable ALL selects on the page
         document.querySelectorAll('select').forEach(sel => sel.disabled = false);
         document.querySelectorAll('input[type="text"]').forEach(inp => inp.disabled = false);
 
-        // Unlock amount field
-        amountInput.readOnly = false;
-        amountInput.classList.remove('bg-gray-100', 'cursor-not-allowed');
+        // Amount field remains editable
         amountNote.classList.add('hidden');
-        amountInput.value = originalAmount;
 
         // Restore single-group visibility  
         document.getElementById('type-single').checked = true;

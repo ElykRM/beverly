@@ -17,6 +17,14 @@ try {
         $moveOutDate = $_POST['move_out_date'];
     }
 
+    $membershipDate = !empty($_POST['membership_date']) ? $_POST['membership_date'] : null;
+    $membershipOrNo = isset($_POST['membership_or_no']) && trim($_POST['membership_or_no']) !== ''
+        ? trim($_POST['membership_or_no'])
+        : null;
+    $membershipFee = isset($_POST['membership_fee']) && $_POST['membership_fee'] !== ''
+        ? (float)$_POST['membership_fee']
+        : null;
+
     // Update primary household
     $stmt = $pdo->prepare("
             UPDATE households SET
@@ -25,6 +33,7 @@ try {
                 birthday = ?, gender = ?,
                 contact_no = ?, occupation = ?, num_pets = ?,
                 move_in_date = ?, move_out_date = ?,
+                membership_date = ?, membership_or_no = ?, membership_fee = ?,
                 updated_at = NOW()
             WHERE id = ?
         ");
@@ -44,6 +53,9 @@ try {
             $_POST['num_pets'] ?? 0,
             $_POST['move_in_date'] ?: null,
             $moveOutDate,
+            $membershipDate,
+            $membershipOrNo,
+            $membershipFee,
             $id
         ]);
 
