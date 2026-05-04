@@ -1,10 +1,11 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+include '../config.php';
 include '../includes/header.php';
 
-// Pagination settings
-$perPage = 10; // ← Change here if you want more/less per page
+// Pagination settings (from config.php)
+$perPage = PAGINATION_PER_PAGE;
 
 // Fetch ALL households once (JS will handle filtering + pagination)
 $stmt = $pdo->query("
@@ -158,7 +159,7 @@ const showingCount = document.getElementById('showing-count');
 const totalFilteredEl = document.getElementById('total-filtered');
 
 let currentPage = 1;
-const perPage = 10;
+const perPage = <?= PAGINATION_PER_PAGE ?>;
 
 function getVisibleRows() {
     const statusValue = (statusFilter.value || 'ALL').toUpperCase().trim();

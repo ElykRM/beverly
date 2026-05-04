@@ -45,6 +45,18 @@ if ($household['birthday']) {
     $age = $today->diff($birthDate)->y;
 }
 
+$membershipDateRaw = $household['membership_date'] ?? null;
+$membershipOrNoRaw = $household['membership_or_no'] ?? null;
+$membershipFeeRaw = $household['membership_fee'] ?? null;
+
+$membershipDate = $membershipDateRaw
+    ? date('M d, Y', strtotime($membershipDateRaw))
+    : '-';
+$membershipOrNo = $membershipOrNoRaw ?: '-';
+$membershipFee = $membershipFeeRaw !== null
+    ? '₱' . number_format((float)$membershipFeeRaw, 2)
+    : '-';
+
 $success_msg = $_GET['msg'] ?? '';
 $referrer = isset($_GET['referrer']) ? $_GET['referrer'] : 'habitants';
 
@@ -111,6 +123,22 @@ echo "<!-- DEBUG: referrer=$referrer -->";
             <div>
                 <label class="block text-sm font-medium text-gray-500">No. of Pets</label>
                 <p class="mt-1 text-lg"><?= $household['num_pets'] ?></p>
+            </div>
+            <div>
+                <label class="block text-sm font-medium text-gray-500">Date of membership</label>
+                <p class="mt-1 text-lg"><?= htmlspecialchars($membershipDate) ?></p>
+            </div>
+            <div class="lg:col-span-2">
+                <div class="grid grid-cols-1 sm:grid-cols-2 gap-6">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">OR No. / INV No.</label>
+                        <p class="mt-1 text-lg"><?= htmlspecialchars($membershipOrNo) ?></p>
+                    </div>
+                    <div>
+                        <label class="block text-sm font-medium text-gray-500">Fee</label>
+                        <p class="mt-1 text-lg"><?= htmlspecialchars($membershipFee) ?></p>
+                    </div>
+                </div>
             </div>
             <div class="lg:col-span-2">
                 <label class="block text-sm font-medium text-gray-500">Date of Move-in / Move-out</label>
@@ -215,7 +243,7 @@ echo "<!-- DEBUG: referrer=$referrer -->";
                 <table id="payment-history-table" class="min-w-full divide-y divide-gray-200">
                     <thead class="bg-gray-50">
                         <tr>
-                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR No.</th>
+                            <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">OR No/INV No</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Period</th>
                             <th class="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Amount</th>
                             <th class="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Date Paid</th>

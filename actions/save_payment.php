@@ -1,6 +1,7 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+include '../config.php';
 
 $isAjax = (
     (isset($_SERVER['HTTP_X_REQUESTED_WITH']) && strtolower((string)$_SERVER['HTTP_X_REQUESTED_WITH']) === 'xmlhttprequest') ||
@@ -21,6 +22,7 @@ if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
 
 try {
     $pdo->beginTransaction();
+
 
     $monthName = [
         1 => 'January', 2 => 'February', 3 => 'March', 4 => 'April',
@@ -92,7 +94,6 @@ try {
         $period_month     = 1;
         $period_to_year   = $period_year;
         $period_to_month  = 12;
-        $amount           = 1000.00; // enforce promo price
     }
 
     // Enforce oldest-first payment: no paying later months while earlier due months are unpaid.

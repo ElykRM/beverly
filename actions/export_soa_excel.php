@@ -1,6 +1,7 @@
 <?php
 include '../includes/auth.php';
 include '../db.php';
+include '../config.php';
 
 // Suppress errors to avoid corrupting Excel output
 ini_set('display_errors', 0);
@@ -172,7 +173,7 @@ for ($y = $startYear; $y <= $currentYear; $y++) {
                 }
                 
                 // For promo: divide by 10, not 12
-                $divisor = $payment['is_promo'] ? min(10, $monthCount) : $monthCount;
+                $divisor = $payment['is_promo'] ? min(PROMO_EFFECTIVE_MONTHS, $monthCount) : $monthCount;
                 $perMonth = $divisor > 0 ? (float)$payment['amount'] / $divisor : 0;
                 
                 $paymentFound = true;
@@ -247,6 +248,7 @@ foreach ($monthData as $month) {
 }
 
 $monthlyDue = 100.00; // ₱100 per month
+$monthlyDue = DEFAULT_MONTHLY_DUE;
 $totalExpected = $billableMonths * $monthlyDue;
 
 // Create spreadsheet

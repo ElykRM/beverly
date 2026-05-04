@@ -2,14 +2,25 @@
 include '../includes/auth.php';
 include '../db.php';
 
+// CORS headers for InfinityFree compatibility
+header('Access-Control-Allow-Origin: *');
+header('Access-Control-Allow-Methods: POST, OPTIONS');
+header('Access-Control-Allow-Headers: Content-Type, X-Requested-With');
+header('Access-Control-Max-Age: 3600');
+
 // Admin-only
 require_admin();
 
 function respondJson(int $statusCode, array $payload): void {
     http_response_code($statusCode);
-    header('Content-Type: application/json');
+    header('Content-Type: application/json; charset=utf-8');
     echo json_encode($payload);
     exit;
+}
+
+// Handle preflight requests
+if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
+    respondJson(200, ['success' => true]);
 }
 
 if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
