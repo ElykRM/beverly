@@ -40,7 +40,6 @@ try {
     $amount  = filter_var($amount_raw, FILTER_VALIDATE_FLOAT);
     $remarks = trim($_POST['remarks'] ?? '');
     $is_promo = isset($_POST['is_promo']) && $_POST['is_promo'] == '1' ? 1 : 0;
-    $exemption_year = isset($_POST['exemption_year']) && $_POST['exemption_year'] !== '' ? (int)$_POST['exemption_year'] : null;
 
     if ($or_no === '') {
         throw new Exception("OR number is required.");
@@ -96,6 +95,53 @@ try {
         $period_to_month  = 12;
     }
 
+    // Check if payment period overlaps with any active exemption
+    $exemptStmt = $pdo->prepare("
+        SELECT exemption_year, exemption_month, exemption_to_year, exemption_to_month, reason
+        FROM exemptions
+        WHERE household_id = ?
+    ");
+    $exemptStmt->execute([$household_id]);
+    $allExemptions = $exemptStmt->fetchAll();
+
+    foreach ($allExemptions as $ex) {
+        $exYear = (int)$ex['exemption_year'];
+        $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
+        $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
+        $exToMonth = $ex['exemption_to_month'] ? (int)$ex['exemption_to_month'] : null;
+        
+        // Check if requested period overlaps with this exemption
+        $payStartKey = ($period_year * 100) + $period_month;
+        $payEndKey = (($period_to_year ?? $period_year) * 100) + ($period_to_month ?? $period_month);
+        
+        // Full year exemption
+        if ($exMonth === null && $exToYear === null) {
+            if ($period_year == $exYear || ($period_to_year && $period_to_year == $exYear) || 
+                ($period_year < $exYear && ($period_to_year ?? $period_year) > $exYear)) {
+                $reason = $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for year {$exYear}{$reason}.");
+            }
+        }
+        // Single month exemption
+        else if ($exMonth !== null && $exToYear === null) {
+            $exKey = ($exYear * 100) + $exMonth;
+            if ($exKey >= $payStartKey && $exKey <= $payEndKey) {
+                $monthName = date('F', mktime(0, 0, 0, $exMonth, 1));
+                $reason = $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for {$monthName} {$exYear}{$reason}.");
+            }
+        }
+        // Range exemption
+        else if ($exToYear !== null) {
+            $exStartKey = ($exYear * 100) + ($exMonth ?? 1);
+            $exEndKey = ($exToYear * 100) + ($exToMonth ?? 12);
+            if ($payStartKey <= $exEndKey && $payEndKey >= $exStartKey) {
+                $reason = $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for the specified period{$reason}.");
+            }
+        }
+    }
+
     // Enforce oldest-first payment: no paying later months while earlier due months are unpaid.
     $today = new DateTime();
     $currentDueYear = (int)$today->format('Y');
@@ -106,11 +152,6 @@ try {
     $paidStmt = $pdo->prepare("\n        SELECT period_year, period_month, period_to_year, period_to_month\n        FROM payments\n        WHERE household_id = ? AND deleted_at IS NULL\n    ");
     $paidStmt->execute([$household_id]);
     $existingPayments = $paidStmt->fetchAll();
-
-    // Fetch exemptions for this household
-    $exemptStmt = $pdo->prepare("\n        SELECT exemption_year, exemption_month, exemption_to_year, exemption_to_month\n        FROM exemptions\n        WHERE household_id = ?\n    ");
-    $exemptStmt->execute([$household_id]);
-    $exemptions = $exemptStmt->fetchAll();
 
     $minPaidYear = null;
     foreach ($existingPayments as $p) {
@@ -149,7 +190,7 @@ try {
     for ($y = $dueStartYear; $y <= $currentDueYear; $y++) {
         // Check if this year is exempted
         $yearIsExempted = false;
-        foreach ($exemptions as $ex) {
+        foreach ($allExemptions as $ex) {
             $exYear = (int)$ex['exemption_year'];
             $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
             $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
@@ -180,7 +221,7 @@ try {
         for ($m = $mFrom; $m <= $mTo; $m++) {
             // Check if this specific month is exempted
             $monthIsExempted = false;
-            foreach ($exemptions as $ex) {
+            foreach ($allExemptions as $ex) {
                 $exYear = (int)$ex['exemption_year'];
                 $exMonth = $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
                 $exToYear = $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
