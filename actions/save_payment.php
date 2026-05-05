@@ -40,7 +40,6 @@ try {
     $amount  = filter_var($amount_raw, FILTER_VALIDATE_FLOAT);
     $remarks = trim($_POST['remarks'] ?? '');
     $is_promo = isset($_POST['is_promo']) && $_POST['is_promo'] == '1' ? 1 : 0;
-    $exemption_year = isset($_POST['exemption_year']) && $_POST['exemption_year'] !== '' ? (int)$_POST['exemption_year'] : null;
 
     if ($or_no === '') {
         throw new Exception("OR number is required.");
@@ -94,6 +93,48 @@ try {
         $period_month     = 1;
         $period_to_year   = $period_year;
         $period_to_month  = 12;
+    }
+
+    // Decode and check all active exemptions
+    $exemptionsJson = $_POST['exemption_year'] ?? '[]';
+    $allExemptions = json_decode($exemptionsJson, true) ?: [];
+
+    foreach ($allExemptions as $ex) {
+        $exYear = (int)$ex['exemption_year'];
+        $exMonth = isset($ex['exemption_month']) && $ex['exemption_month'] ? (int)$ex['exemption_month'] : null;
+        $exToYear = isset($ex['exemption_to_year']) && $ex['exemption_to_year'] ? (int)$ex['exemption_to_year'] : null;
+        $exToMonth = isset($ex['exemption_to_month']) && $ex['exemption_to_month'] ? (int)$ex['exemption_to_month'] : null;
+        
+        // Check if requested period overlaps with this exemption
+        $payStartKey = ($period_year * 100) + $period_month;
+        $payEndKey = (($period_to_year ?? $period_year) * 100) + ($period_to_month ?? $period_month);
+        
+        // Full year exemption
+        if ($exMonth === null && $exToYear === null) {
+            if ($period_year == $exYear || ($period_to_year && $period_to_year == $exYear) || 
+                ($period_year < $exYear && ($period_to_year ?? $period_year) > $exYear)) {
+                $reason = isset($ex['reason']) && $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for year {$exYear}{$reason}.");
+            }
+        }
+        // Single month exemption
+        else if ($exMonth !== null && $exToYear === null) {
+            $exKey = ($exYear * 100) + $exMonth;
+            if ($exKey >= $payStartKey && $exKey <= $payEndKey) {
+                $monthName = date('F', mktime(0, 0, 0, $exMonth, 1));
+                $reason = isset($ex['reason']) && $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for {$monthName} {$exYear}{$reason}.");
+            }
+        }
+        // Range exemption
+        else if ($exToYear !== null) {
+            $exStartKey = ($exYear * 100) + ($exMonth ?? 1);
+            $exEndKey = ($exToYear * 100) + ($exToMonth ?? 12);
+            if ($payStartKey <= $exEndKey && $payEndKey >= $exStartKey) {
+                $reason = isset($ex['reason']) && $ex['reason'] ? " ({$ex['reason']})" : '';
+                throw new Exception("This household is exempted from payment for the specified period{$reason}.");
+            }
+        }
     }
 
     // Enforce oldest-first payment: no paying later months while earlier due months are unpaid.

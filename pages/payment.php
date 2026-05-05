@@ -313,7 +313,6 @@ const selectionNote = document.getElementById('selection-note');
 const selectedHouseholdSpan = document.getElementById('selected-household');
 
 let selectedHouseholdData = null;
-let currentExemptionIndex = null; // Track currently applied exemption
 
 // Function to populate year dropdown for adding exemptions
 function populateYearDropdown() {
@@ -358,7 +357,6 @@ searchInput.addEventListener('input', (e) => {
         householdIdField.value = '';
         selectionNote.classList.add('hidden');
         document.getElementById('manage-exemption-section').style.display = 'none';
-        currentExemptionIndex = null;
         selectedHouseholdData = null;
         return;
     }
@@ -373,7 +371,6 @@ searchInput.addEventListener('input', (e) => {
         householdIdField.value = '';
         selectionNote.classList.add('hidden');
         document.getElementById('manage-exemption-section').style.display = 'none';
-        currentExemptionIndex = null;
         return;
     }
 
@@ -450,7 +447,7 @@ function updateExemptionDisplay(householdId) {
     } else {
         currentExemptionsDiv.innerHTML = exemptions.map((ex, idx) => `
             <div class="flex items-center justify-between bg-blue-50 p-3 rounded border border-blue-200 text-sm">
-                <span class="text-gray-800">${formatExemptionLabel(ex)} ${ex.reason ? `<span class="text-gray-500">- ${ex.reason}</span>` : ''} ${idx === currentExemptionIndex ? '<span class="ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">ACTIVE</span>' : ''}</span>
+                <span class="text-gray-800">${formatExemptionLabel(ex)} ${ex.reason ? `<span class="text-gray-500">- ${ex.reason}</span>` : ''} <span class="ml-2 bg-green-500 text-white px-2 py-1 rounded text-xs font-bold">ACTIVE</span></span>
                 <button type="button" class="delete-exemption-btn text-red-600 hover:text-red-800 font-medium text-sm" data-index="${idx}">
                     Remove
                 </button>
@@ -551,9 +548,6 @@ function addExemption() {
             reason: reason 
         });
         
-        // Set this new exemption as active (last index)
-        currentExemptionIndex = allExemptions[householdId].length - 1;
-        
         // Refresh display and clear inputs
         updateExemptionDisplay(householdId);
         document.getElementById('exemption_year_add').value = '';
@@ -597,11 +591,6 @@ function deleteExemption(householdId, exemData) {
                           ex.exemption_to_year == exemData.exemption_to_year &&
                           ex.exemption_to_month == exemData.exemption_to_month)
                     );
-                    
-                    // Clear active exemption if we deleted it or list is now empty
-                    if (currentExemptionIndex !== null && currentExemptionIndex >= allExemptions[householdId].length) {
-                        currentExemptionIndex = null;
-                    }
                 }
                 
                 // Refresh display
@@ -738,12 +727,10 @@ const paymentForm = document.getElementById('payment-form');
 // Error styling handled by showNoticeModal
 
 paymentForm.addEventListener('submit', async function(e) {
-    // Set the active exemption value in the hidden field
-    if (currentExemptionIndex !== null) {
-        document.getElementById('exemption_year').value = currentExemptionIndex;
-    } else {
-        document.getElementById('exemption_year').value = '';
-    }
+    // Collect all active exemptions for the household
+    const householdId = householdIdField.value;
+    const exemptions = allExemptions[householdId] || [];
+    document.getElementById('exemption_year').value = JSON.stringify(exemptions);
     
     const amt = parseFloat(amountInput.value);
     if (isNaN(amt) || amt <= 0) {
